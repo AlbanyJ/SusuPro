@@ -1,0 +1,93 @@
+// ============================================================
+// FILE 24: firestore.rules  ← BACKEND SECURITY
+// WHAT:   Rules that control who can read/write in Firebase.
+//         These run ON FIREBASE'S SERVERS — not on the phone.
+//         Even if someone hacks your app, these rules block them.
+//
+// HOW TO DEPLOY:
+//   1. Install Firebase CLI: npm install -g firebase-tools
+//   2. Login: firebase login
+//   3. Init:  firebase init firestore
+//   4. Deploy: firebase deploy --only firestore:rules
+// ============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────
+
+    // Is the user logged in at all?
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    // Get the current user's role from the users collection
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // Is the current user an admin?
+    function isAdmin() {
+      return isLoggedIn() && userRole() == 'admin';
+    }
+
+    // Is the current user a collector?
+    function isCollector() {
+      return isLoggedIn() && (userRole() == 'collector' || userRole() == 'admin');
+    }
+
+
+    // ── USERS collection ─────────────────────────────────────
+    // Only admins can create or delete users.
+    // Users can read their own profile.
+    match /users/{userId} {
+      allow read:   if isLoggedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin() || request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+
+    // ── CUSTOMERS collection ──────────────────────────────────
+    // All logged-in users can read customers.
+    // Only admins can add or delete customers.
+    // Collectors can update (for balance changes during transactions).
+    match /customers/{customerId} {
+      allow read:   if isLoggedIn();
+      allow create: if isAdmin();
+      allow update: if isCollector();  // balance updates during transactions
+      allow delete: if isAdmin();
+    }
+
+
+    // ── TRANSACTIONS collection ───────────────────────────────
+    // All logged-in users can read transactions.
+    // Any collector (or admin) can create a transaction.
+    // Nobody can edit or delete a transaction (audit integrity).
+    match /transactions/{transactionId} {
+      allow read:   if isLoggedIn();
+      allow create: if isCollector();
+      allow update: if false;   // NEVER allow editing transactions
+      allow delete: if false;   // NEVER allow deleting transactions
+    }
+
+
+    // ── AUDIT_LOG collection ──────────────────────────────────
+    // Only admins can read the audit log.
+    // The app can write to it (via server functions).
+    // Nobody can edit or delete audit entries.
+    match /audit_log/{logId} {
+      allow read:   if isAdmin();
+      allow create: if isCollector();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+
+    // ── Everything else: DENY by default ─────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

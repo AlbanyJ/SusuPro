@@ -1,0 +1,116 @@
+// ============================================================
+// FILE 6: src/services/transactionService.js
+// WHAT:   Records money going IN (contributions) and
+//         money going OUT (withdrawals).
+//         Also updates the customer's balance.
+//         Uses Firestore transactions for data integrity
+//         (either BOTH the transaction AND balance update
+//         succeed, or NEITHER does — no half-saves).
+// ============================================================
+
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+  runTransaction,
+  doc,
+} from 'firebase/firestore';
+import { db } from './firebase';
+
+const TXN_COLLECTION      = 'transactions';
+const CUSTOMER_COLLECTION = 'customers';
+
+// ── RECORD A TRANSACTION ──────────────────────────────────────
+// This is the most critical function in the app.
+// It uses a Firestore "runTransaction" to guarantee that:
+//   1. The transaction record is saved
+//   2. The customer balance is updated
+// Both happen together or not at all.
+export async function recordTransaction({ customerId, type, amount, collectorId, notes }) {
+  try {
+    // Validate inputs before touching the database
+    if (!customerId) throw new Error('Customer is required.');
+    if (!amount || amount <= 0) throw new Error('Amount must be greater than 0.');
+    if (!['contribution', 'withdrawal'].includes(type)) throw new Error('Invalid transaction type.');
+
+    const customerRef = doc(db, CUSTOMER_COLLECTION, customerId);
+
+    // runTransaction guarantees atomicity (all-or-nothing)
+    await runTransaction(db, async (firestoreTransaction) => {
+      const customerSnap = await firestoreTransaction.get(customerRef);
+
+      if (!customerSnap.exists()) throw new Error('Customer not found.');
+
+      const currentBalance = customerSnap.data().balance;
+
+      // Prevent withdrawals that exceed balance
+      if (type === 'withdrawal' && amount > currentBalance) {
+        throw new Error(`Insufficient balance. Available: GHS ${currentBalance.toLocaleString()}`);
+      }
+
+      // Calculate new balance
+      const newBalance = type === 'contribution'
+        ? currentBalance + amount
+        : currentBalance - amount;
+
+      // Update customer balance
+      firestoreTransaction.update(customerRef, {
+        balance:   newBalance,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Add transaction record to the transactions collection
+      const txnRef = doc(collection(db, TXN_COLLECTION));
+      firestoreTransaction.set(txnRef, {
+        customerId,
+        type,
+        amount,
+        collectorId,
+        notes:     notes || '',
+        status:    'completed',
+        date:      new Date().toISOString().split('T')[0],
+        time:      new Date().toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' }),
+        createdAt: serverTimestamp(),
+      });
+    });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ── FETCH ALL TRANSACTIONS ────────────────────────────────────
+export async function fetchTransactions() {
+  try {
+    const q = query(
+      collection(db, TXN_COLLECTION),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ── FETCH TRANSACTIONS FOR ONE CUSTOMER ───────────────────────
+export async function fetchCustomerTransactions(customerId) {
+  try {
+    const q = query(
+      collection(db, TXN_COLLECTION),
+      where('customerId', '==', customerId),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
