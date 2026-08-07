@@ -3,27 +3,71 @@
 // WHAT:   User profile, security info, and logout button.
 // ============================================================
 
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { useApp, ACTIONS } from '../store/AppContext';
 import { logoutUser } from '../services/authService';
+import { fetchUsers, createTeamMember } from '../services/userService';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import Input from '../components/Input';
 import { Colors, Typography, Spacing, Radius } from '../constants/theme';
 
+// Only claims we actually enforce in this codebase — see
+// firebase.js (Auth), firestore.rules (access control) and
+// transactionService.js (atomic runTransaction).
 const SECURITY_ITEMS = [
-  { label: 'Password Hashing',    value: 'bcrypt (rounds: 12)',   ok: true },
-  { label: 'Data Encryption',     value: 'AES-256 at rest',       ok: true },
-  { label: 'API Communication',   value: 'HTTPS / TLS 1.3',       ok: true },
-  { label: 'Role-Based Access',   value: 'Enforced',              ok: true },
-  { label: 'Audit Logging',       value: 'All actions logged',    ok: true },
+  { label: 'Authentication',        value: 'Firebase Auth (email/password)' },
+  { label: 'Data in Transit',       value: 'HTTPS / TLS' },
+  { label: 'Access Control',        value: 'Enforced by Firestore rules' },
+  { label: 'Transaction Integrity', value: 'Atomic balance updates' },
 ];
 
 export default function SettingsScreen({ navigation }) {
   const { state, dispatch } = useApp();
   const { currentUser, offlineQueue, isOnline } = state;
+  const isAdmin = currentUser?.role === 'admin';
+
+  const [team,        setTeam]        = useState([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'collector' });
+
+  const loadTeam = useCallback(async () => {
+    if (!isAdmin) return;
+    setTeamLoading(true);
+    const result = await fetchUsers();
+    if (result.success) setTeam(result.data);
+    setTeamLoading(false);
+  }, [isAdmin]);
+
+  useEffect(() => { loadTeam(); }, [loadTeam]);
+
+  async function handleAddTeamMember() {
+    if (!form.name.trim() || !form.email.trim() || !form.password) {
+      Alert.alert('Missing Info', 'Name, email and password are all required.');
+      return;
+    }
+    if (form.password.length < 6) {
+      Alert.alert('Weak Password', 'Password must be at least 6 characters.');
+      return;
+    }
+
+    setSaving(true);
+    const result = await createTeamMember(form);
+    setSaving(false);
+
+    if (result.success) {
+      setForm({ name: '', email: '', password: '', role: 'collector' });
+      setShowAdd(false);
+      loadTeam();
+    } else {
+      Alert.alert('Error', result.error || 'Could not create team member.');
+    }
+  }
 
   async function handleLogout() {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -75,6 +119,32 @@ export default function SettingsScreen({ navigation }) {
           </Card>
         )}
 
+        {/* ── Team Members (admin only) ── */}
+        {isAdmin && (
+          <Card style={styles.secCard}>
+            <View style={styles.teamHead}>
+              <Text style={styles.secTitle}>👥 Team Members</Text>
+              <Button label="+ Add" onPress={() => setShowAdd(true)} size="sm" />
+            </View>
+            {teamLoading && team.length === 0 ? (
+              <Text style={styles.teamEmpty}>Loading…</Text>
+            ) : team.length === 0 ? (
+              <Text style={styles.teamEmpty}>No team members yet.</Text>
+            ) : (
+              team.map(u => (
+                <View key={u.id} style={styles.teamRow}>
+                  <Avatar initials={u.avatar || '?'} size={36} variant={u.role === 'admin' ? 'green' : 'gray'} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.teamName}>{u.name}</Text>
+                    <Text style={styles.teamEmail}>{u.email}</Text>
+                  </View>
+                  <Badge label={u.role === 'admin' ? 'Admin' : 'Collector'} type={u.role === 'admin' ? 'success' : 'neutral'} />
+                </View>
+              ))
+            )}
+          </Card>
+        )}
+
         {/* ── Security Info ── */}
         <Card style={styles.secCard}>
           <Text style={styles.secTitle}>🔐 Security</Text>
@@ -83,7 +153,7 @@ export default function SettingsScreen({ navigation }) {
               <Text style={styles.secLabel}>{item.label}</Text>
               <View style={styles.secRight}>
                 <Text style={styles.secValue}>{item.value}</Text>
-                {item.ok && <Text style={styles.secCheck}>✓</Text>}
+                <Text style={styles.secCheck}>✓</Text>
               </View>
             </View>
           ))}
@@ -96,7 +166,7 @@ export default function SettingsScreen({ navigation }) {
             ['Frontend',  'React Native (Expo)'],
             ['Backend',   'Firebase Auth + Firestore'],
             ['Offline',   'SQLite (expo-sqlite)'],
-            ['Auth',      'Firebase Auth (bcrypt)'],
+            ['Auth',      'Firebase Authentication'],
             ['Roles',     'Admin / Collector'],
           ].map(([k, v]) => (
             <Text key={k} style={styles.archLine}><Text style={styles.archKey}>{k}:</Text> {v}</Text>
@@ -114,6 +184,45 @@ export default function SettingsScreen({ navigation }) {
 
         <View style={{ height: 20 }} />
       </View>
+
+      {/* ── Add Team Member Modal ── */}
+      <Modal visible={showAdd} animationType="slide" transparent>
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHead}>
+              <Text style={styles.modalTitle}>Add Team Member</Text>
+              <TouchableOpacity onPress={() => setShowAdd(false)} style={styles.closeBtn}>
+                <Text style={styles.closeIcon}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <Input label="Full Name" value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} placeholder="e.g. Ama Boateng" required />
+              <Input label="Email Address" value={form.email} onChangeText={v => setForm(f => ({ ...f, email: v }))} placeholder="name@example.com" keyboardType="email-address" required />
+              <Input label="Temporary Password" value={form.password} onChangeText={v => setForm(f => ({ ...f, password: v }))} placeholder="At least 6 characters" secureTextEntry required />
+
+              <Text style={styles.fieldLabel}>ROLE</Text>
+              <View style={styles.roleRow}>
+                {['collector', 'admin'].map(r => (
+                  <TouchableOpacity
+                    key={r}
+                    onPress={() => setForm(f => ({ ...f, role: r }))}
+                    style={[styles.roleBtn, form.role === r && styles.roleBtnActive]}
+                  >
+                    <Text style={[styles.roleBtnLabel, form.role === r && styles.roleBtnLabelActive]}>
+                      {r === 'admin' ? 'Administrator' : 'Collector'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.modalButtons}>
+                <Button label="Cancel" onPress={() => setShowAdd(false)} variant="ghost" style={{ flex: 1 }} />
+                <Button label="Create Account" onPress={handleAddTeamMember} loading={saving} style={{ flex: 1 }} />
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -141,10 +250,33 @@ const styles = StyleSheet.create({
   secValue:    { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
   secCheck:    { color: Colors.green500, fontFamily: Typography.bold },
 
+  teamHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  teamEmpty:   { fontFamily: Typography.body, fontSize: 13, color: Colors.gray400, paddingVertical: 8 },
+  teamRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.gray50 },
+  teamName:    { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray900 },
+  teamEmail:   { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400 },
+
   archCard:    { backgroundColor: Colors.green50, borderWidth: 1, borderColor: Colors.green100 },
   archTitle:   { fontFamily: Typography.bold, fontSize: 13, color: Colors.green700, marginBottom: 10 },
   archLine:    { fontFamily: Typography.body, fontSize: 12, color: Colors.gray600, lineHeight: 22 },
   archKey:     { fontFamily: Typography.bold },
 
   logoutBtn:   { marginTop: 6 },
+
+  overlay:      { flex: 1, backgroundColor: 'rgba(17,24,39,0.5)', justifyContent: 'flex-end' },
+  modal:        { backgroundColor: Colors.white, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
+  modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
+  modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: Colors.gray900 },
+  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.gray100, alignItems: 'center', justifyContent: 'center' },
+  closeIcon:    { fontSize: 16, color: Colors.gray500 },
+  modalBody:    { padding: 20, gap: 14 },
+  fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: Colors.gray500, letterSpacing: 1 },
+
+  roleRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: Colors.gray200 },
+  roleBtn:      { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: Colors.white },
+  roleBtnActive:{ backgroundColor: Colors.green600 },
+  roleBtnLabel: { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray500 },
+  roleBtnLabelActive: { color: Colors.white },
+
+  modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 20 },
 });

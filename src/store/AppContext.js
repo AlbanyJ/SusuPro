@@ -5,59 +5,43 @@
 //         Every screen can read AND update data from here.
 // HOW:    Wrap your app in <AppProvider> (done in App.js).
 //         Then use: const { state, dispatch } = useApp();
+//
+// Data lives in Firestore. This file holds no seed/mock data —
+// customers and transactions are loaded via loadAppData() once
+// a user is authenticated (see App.js), and every write goes
+// through src/services/*.js so Firestore stays the source of
+// truth.
 // ============================================================
 
 import React, { createContext, useContext, useReducer } from 'react';
+import { fetchCustomers } from '../services/customerService';
+import { fetchTransactions } from '../services/transactionService';
 
-// ── Initial data (replace with real Firebase data later) ──
 const initialState = {
-  // Logged-in user (null = not logged in)
+  // Logged-in user profile (null = not logged in)
   currentUser: null,
 
-  // All system users (admin + collectors)
-  users: [
-    {
-      id: 'u1',
-      name: 'Kwame Asante',
-      email: 'admin@susu.gh',
-      password: 'admin123',   // In production: bcrypt hash stored in Firebase Auth
-      role: 'admin',
-      avatar: 'KA',
-    },
-    {
-      id: 'u2',
-      name: 'Ama Boateng',
-      email: 'ama@susu.gh',
-      password: 'collector1',
-      role: 'collector',
-      avatar: 'AB',
-    },
-  ],
+  // True while we're checking for an existing Firebase session
+  // on app launch. Prevents flashing the login screen before we
+  // know whether the user is already signed in.
+  authLoading: true,
 
-  // Customer list
-  customers: [
-    { id: 'c1', name: 'Akosua Mensah',   phone: '0244123456', idNo: 'GHA-2341', balance: 4200,  active: true,  joinDate: '2024-01-15', avatar: 'AM' },
-    { id: 'c2', name: 'Kofi Owusu',      phone: '0551987654', idNo: 'GHA-8821', balance: 7800,  active: true,  joinDate: '2024-02-03', avatar: 'KO' },
-    { id: 'c3', name: 'Efua Darko',      phone: '0208765432', idNo: '',         balance: 1500,  active: true,  joinDate: '2024-03-10', avatar: 'ED' },
-    { id: 'c4', name: 'Yaw Asiedu',      phone: '0277654321', idNo: 'GHA-4490', balance: 12300, active: true,  joinDate: '2023-11-20', avatar: 'YA' },
-    { id: 'c5', name: 'Adwoa Frimpong',  phone: '0244000111', idNo: '',         balance: 0,     active: false, joinDate: '2024-01-05', avatar: 'AF' },
-  ],
+  // Customer list (loaded from Firestore)
+  customers: [],
 
-  // All transactions
-  transactions: [
-    { id: 't1', customerId: 'c1', type: 'contribution', amount: 200,  date: '2025-03-28', time: '08:42', collectorId: 'u2', notes: 'Daily savings', status: 'completed' },
-    { id: 't2', customerId: 'c2', type: 'contribution', amount: 500,  date: '2025-03-28', time: '09:10', collectorId: 'u2', notes: '',             status: 'completed' },
-    { id: 't3', customerId: 'c4', type: 'withdrawal',   amount: 3000, date: '2025-03-27', time: '14:30', collectorId: 'u1', notes: 'Admin approved',status: 'completed' },
-    { id: 't4', customerId: 'c3', type: 'contribution', amount: 100,  date: '2025-03-28', time: '10:15', collectorId: 'u2', notes: '',             status: 'completed' },
-    { id: 't5', customerId: 'c1', type: 'contribution', amount: 200,  date: '2025-03-27', time: '08:55', collectorId: 'u2', notes: 'Daily savings', status: 'completed' },
-    { id: 't6', customerId: 'c2', type: 'contribution', amount: 500,  date: '2025-03-26', time: '09:05', collectorId: 'u2', notes: '',             status: 'completed' },
-    { id: 't7', customerId: 'c4', type: 'contribution', amount: 1000, date: '2025-03-26', time: '11:20', collectorId: 'u1', notes: 'Weekly bulk',  status: 'completed' },
-  ],
+  // All transactions (loaded from Firestore)
+  transactions: [],
+
+  // True while customers/transactions are being fetched
+  dataLoading: false,
+  dataError: null,
 
   // Audit log — every action is recorded here
   auditLog: [],
 
-  // Offline queue — transactions saved when no internet
+  // Offline queue mirror — transactions saved locally when there's
+  // no internet (source of truth is the SQLite table; this is
+  // just what the UI shows, e.g. "3 pending sync").
   offlineQueue: [],
 
   // Network status
@@ -66,14 +50,22 @@ const initialState = {
 
 // ── Action types (what can change in state) ──
 export const ACTIONS = {
+  SET_AUTH_LOADING:   'SET_AUTH_LOADING',
   LOGIN:              'LOGIN',
   LOGOUT:             'LOGOUT',
+
+  SET_DATA_LOADING:   'SET_DATA_LOADING',
+  SET_DATA_ERROR:     'SET_DATA_ERROR',
+  SET_CUSTOMERS:      'SET_CUSTOMERS',
+  SET_TRANSACTIONS:   'SET_TRANSACTIONS',
+
   ADD_CUSTOMER:       'ADD_CUSTOMER',
   UPDATE_CUSTOMER:    'UPDATE_CUSTOMER',
   DELETE_CUSTOMER:    'DELETE_CUSTOMER',
   ADD_TRANSACTION:    'ADD_TRANSACTION',
   ADD_TO_AUDIT:       'ADD_TO_AUDIT',
   ADD_TO_QUEUE:       'ADD_TO_QUEUE',
+  REMOVE_FROM_QUEUE:  'REMOVE_FROM_QUEUE',
   CLEAR_QUEUE:        'CLEAR_QUEUE',
   SET_ONLINE:         'SET_ONLINE',
 };
@@ -82,11 +74,33 @@ export const ACTIONS = {
 function reducer(state, action) {
   switch (action.type) {
 
+    case ACTIONS.SET_AUTH_LOADING:
+      return { ...state, authLoading: action.payload };
+
     case ACTIONS.LOGIN:
       return { ...state, currentUser: action.payload };
 
     case ACTIONS.LOGOUT:
-      return { ...state, currentUser: null };
+      return {
+        ...state,
+        currentUser: null,
+        customers: [],
+        transactions: [],
+        auditLog: [],
+        offlineQueue: [],
+      };
+
+    case ACTIONS.SET_DATA_LOADING:
+      return { ...state, dataLoading: action.payload };
+
+    case ACTIONS.SET_DATA_ERROR:
+      return { ...state, dataError: action.payload };
+
+    case ACTIONS.SET_CUSTOMERS:
+      return { ...state, customers: action.payload };
+
+    case ACTIONS.SET_TRANSACTIONS:
+      return { ...state, transactions: action.payload };
 
     case ACTIONS.ADD_CUSTOMER:
       return { ...state, customers: [...state.customers, action.payload] };
@@ -125,6 +139,12 @@ function reducer(state, action) {
     case ACTIONS.ADD_TO_QUEUE:
       return { ...state, offlineQueue: [...state.offlineQueue, action.payload] };
 
+    case ACTIONS.REMOVE_FROM_QUEUE:
+      return {
+        ...state,
+        offlineQueue: state.offlineQueue.filter(t => t.id !== action.payload),
+      };
+
     case ACTIONS.CLEAR_QUEUE:
       return { ...state, offlineQueue: [] };
 
@@ -154,4 +174,33 @@ export function useApp() {
   const context = useContext(AppContext);
   if (!context) throw new Error('useApp must be used inside <AppProvider>');
   return context;
+}
+
+// ── Load customers + transactions from Firestore ──────────────
+// Call this once a user is authenticated (see App.js). Screens
+// never need to call the Firestore services directly for reads —
+// they just read state.customers / state.transactions.
+export async function loadAppData(dispatch) {
+  dispatch({ type: ACTIONS.SET_DATA_LOADING, payload: true });
+  dispatch({ type: ACTIONS.SET_DATA_ERROR, payload: null });
+
+  const [customersResult, transactionsResult] = await Promise.all([
+    fetchCustomers(),
+    fetchTransactions(),
+  ]);
+
+  if (customersResult.success) {
+    dispatch({ type: ACTIONS.SET_CUSTOMERS, payload: customersResult.data });
+  }
+  if (transactionsResult.success) {
+    dispatch({ type: ACTIONS.SET_TRANSACTIONS, payload: transactionsResult.data });
+  }
+
+  const error = !customersResult.success
+    ? customersResult.error
+    : !transactionsResult.success
+      ? transactionsResult.error
+      : null;
+  dispatch({ type: ACTIONS.SET_DATA_ERROR, payload: error });
+  dispatch({ type: ACTIONS.SET_DATA_LOADING, payload: false });
 }

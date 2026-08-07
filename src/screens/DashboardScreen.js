@@ -5,8 +5,8 @@
 // ============================================================
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList } from 'react-native';
-import { useApp } from '../store/AppContext';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { useApp, loadAppData } from '../store/AppContext';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
 import Avatar from '../components/Avatar';
@@ -24,8 +24,8 @@ function todayStr() {
 }
 
 export default function DashboardScreen() {
-  const { state } = useApp();
-  const { currentUser, customers, transactions, isOnline } = state;
+  const { state, dispatch } = useApp();
+  const { currentUser, customers, transactions, isOnline, dataLoading } = state;
 
   // ── Computed stats ──────────────────────────────────────────
   const today = todayStr();
@@ -62,12 +62,17 @@ export default function DashboardScreen() {
     [transactions]
   );
 
-  // Helper: find customer or user by ID
+  // Helper: find customer by ID
   const getCustomer = (id) => customers.find(c => c.id === id);
-  const getCollector = (id) => state.users.find(u => u.id === id);
 
   return (
-    <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.screen}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[Colors.green600]} />
+      }
+    >
 
       {/* ── Hero Header ─────────────────────────────────────── */}
       <View style={styles.hero}>
@@ -129,9 +134,15 @@ export default function DashboardScreen() {
         {/* ── Recent Transactions ─────────────────────────── */}
         <Text style={styles.sectionTitle}>Recent Activity</Text>
 
+        {dataLoading && recentTxns.length === 0 && (
+          <Text style={styles.emptyNote}>Loading activity…</Text>
+        )}
+        {!dataLoading && recentTxns.length === 0 && (
+          <Text style={styles.emptyNote}>No transactions yet.</Text>
+        )}
+
         {recentTxns.map(t => {
           const cust = getCustomer(t.customerId);
-          const collector = getCollector(t.collectorId);
           const isContrib = t.type === 'contribution';
 
           return (
@@ -145,7 +156,7 @@ export default function DashboardScreen() {
                 <View style={styles.txnInfo}>
                   <Text style={styles.txnName}>{cust?.name || 'Unknown'}</Text>
                   <Text style={styles.txnMeta}>
-                    {t.date} · {t.time} · by {collector?.name?.split(' ')[0] || '—'}
+                    {t.date} · {t.time} · by {t.collectorName?.split(' ')[0] || '—'}
                   </Text>
                 </View>
                 <View style={styles.txnRight}>
@@ -189,6 +200,7 @@ const styles = StyleSheet.create({
   content:    { padding: Spacing.lg, marginTop: -12 },
   statRow:    { flexDirection: 'row', gap: 10, marginBottom: 10 },
   sectionTitle: { fontFamily: Typography.display, fontSize: 17, color: Colors.gray900, marginBottom: 12, marginTop: 8 },
+  emptyNote:  { textAlign: 'center', fontFamily: Typography.body, fontSize: 13, color: Colors.gray400, padding: 24 },
 
   // Offline banner
   offlineBanner: { backgroundColor: Colors.amberLight, borderRadius: Radius.sm, padding: 14, flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: Colors.amber },

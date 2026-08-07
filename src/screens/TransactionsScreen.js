@@ -7,9 +7,10 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TouchableOpacity, Modal, ScrollView, Alert,
+  TouchableOpacity, Modal, ScrollView, Alert, RefreshControl,
 } from 'react-native';
-import { useApp, ACTIONS } from '../store/AppContext';
+import { useApp, ACTIONS, loadAppData } from '../store/AppContext';
+import { recordTransaction } from '../services/transactionService';
 import { addToOfflineQueue } from '../database/sqlite';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
@@ -31,7 +32,7 @@ const FILTERS = [
 
 export default function TransactionsScreen() {
   const { state, dispatch } = useApp();
-  const { transactions, customers, currentUser, isOnline } = state;
+  const { transactions, customers, currentUser, isOnline, dataLoading } = state;
 
   const [filter,    setFilter]    = useState('all');
   const [showModal, setShowModal] = useState(false);
@@ -68,35 +69,56 @@ export default function TransactionsScreen() {
 
     setLoading(true);
 
-    const transaction = {
-      id:          uid(),
-      customerId:  custId,
-      type:        txType,
-      amount:      amt,
-      date:        todayStr(),
-      time:        timeNow(),
-      collectorId: currentUser.id,
-      notes:       notes,
-      status:      'completed',
-    };
-
     const balanceChange = txType === 'contribution' ? amt : -amt;
 
     if (isOnline) {
-      // Online: update state directly (Firebase call would go here)
-      dispatch({ type: ACTIONS.ADD_TRANSACTION, payload: { transaction, balanceChange } });
+      // Online: write straight to Firestore (atomic balance update +
+      // transaction record — see transactionService.recordTransaction).
+      const result = await recordTransaction({
+        customerId:    custId,
+        type:          txType,
+        amount:        amt,
+        collectorId:   currentUser.id,
+        collectorName: currentUser.name,
+        notes,
+      });
+
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Could not record transaction.');
+        setLoading(false);
+        return;
+      }
+
+      dispatch({
+        type: ACTIONS.ADD_TRANSACTION,
+        payload: {
+          transaction: {
+            id: result.id, customerId: custId, type: txType, amount: amt,
+            date: todayStr(), time: timeNow(),
+            collectorId: currentUser.id, collectorName: currentUser.name,
+            notes, status: 'completed',
+          },
+          balanceChange,
+        },
+      });
     } else {
-      // Offline: save locally, will sync later
+      // Offline: save locally, will sync automatically once back online.
+      const transaction = {
+        id:            uid(),
+        customerId:    custId,
+        type:          txType,
+        amount:        amt,
+        date:          todayStr(),
+        time:          timeNow(),
+        collectorId:   currentUser.id,
+        collectorName: currentUser.name,
+        notes,
+        status:        'pending_sync',
+      };
       await addToOfflineQueue(transaction);
       dispatch({ type: ACTIONS.ADD_TRANSACTION, payload: { transaction, balanceChange } });
       dispatch({ type: ACTIONS.ADD_TO_QUEUE,    payload: transaction });
     }
-
-    // Audit log
-    dispatch({
-      type: ACTIONS.ADD_TO_AUDIT,
-      payload: { action: `record_${txType}`, by: currentUser.id, at: new Date().toISOString(), data: transaction.id },
-    });
 
     // Reset form
     setCustId(''); setAmount(''); setNotes(''); setTxType('contribution');
@@ -136,10 +158,16 @@ export default function TransactionsScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<Text style={styles.empty}>No transactions found.</Text>}
+        refreshControl={
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[Colors.green600]} />
+        }
+        ListEmptyComponent={
+          <Text style={styles.empty}>{dataLoading ? 'Loading transactions…' : 'No transactions found.'}</Text>
+        }
         renderItem={({ item: t }) => {
           const cust = getCustomer(t.customerId);
           const isContrib = t.type === 'contribution';
+          const pending = t.status === 'pending_sync';
           return (
             <Card style={styles.txnCard}>
               <View style={styles.txnRow}>
@@ -156,7 +184,10 @@ export default function TransactionsScreen() {
                   <Text style={[styles.txnAmount, { color: isContrib ? Colors.green600 : Colors.red }]}>
                     {isContrib ? '+' : '−'}{fmt(t.amount)}
                   </Text>
-                  <Badge label={isContrib ? 'Saved' : 'Withdrawn'} type={isContrib ? 'success' : 'danger'} />
+                  <Badge
+                    label={pending ? 'Pending Sync' : (isContrib ? 'Saved' : 'Withdrawn')}
+                    type={pending ? 'warning' : (isContrib ? 'success' : 'danger')}
+                  />
                 </View>
               </View>
             </Card>

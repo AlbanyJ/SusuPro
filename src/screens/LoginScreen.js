@@ -7,17 +7,14 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, TouchableOpacity,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useApp, ACTIONS } from '../store/AppContext';
 import { loginUser } from '../services/authService';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { Colors, Typography, Radius, Shadows, Spacing } from '../constants/theme';
 
-export default function LoginScreen({ navigation }) {
-  const { dispatch } = useApp();
-
+export default function LoginScreen() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
@@ -31,13 +28,14 @@ export default function LoginScreen({ navigation }) {
     }
 
     setLoading(true);
+    // On success, App.js's auth-state listener picks up the new
+    // session, loads the user's profile + data, and AppNavigator
+    // swaps to the main tabs automatically — no manual navigation
+    // needed here.
     const result = await loginUser(email, password);
     setLoading(false);
 
-    if (result.success) {
-      dispatch({ type: ACTIONS.LOGIN, payload: result.user });
-      navigation.replace('MainTabs'); // Go to the main app
-    } else {
+    if (!result.success) {
       setError(result.error);
     }
   }
@@ -102,19 +100,13 @@ export default function LoginScreen({ navigation }) {
               />
             </View>
 
-            {/* Demo account hints */}
+            {/* No self-signup: accounts are provisioned by an admin */}
             <View style={styles.demoBox}>
-              <Text style={styles.demoLabel}>DEMO ACCOUNTS</Text>
-              <TouchableOpacity onPress={() => { setEmail('admin@susu.gh'); setPassword('admin123'); }}>
-                <Text style={styles.demoItem}>👤 Admin: admin@susu.gh / admin123</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setEmail('ama@susu.gh'); setPassword('collector1'); }}>
-                <Text style={styles.demoItem}>👤 Collector: ama@susu.gh / collector1</Text>
-              </TouchableOpacity>
+              <Text style={styles.demoItem}>Don't have an account? Ask your administrator to add you as a team member.</Text>
             </View>
           </View>
 
-          <Text style={styles.foot}>🔒 All data encrypted and secured</Text>
+          <Text style={styles.foot}>🔒 Secured by Firebase Authentication</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
