@@ -110,7 +110,7 @@ export default function SettingsScreen() {
               <View style={{ marginTop: 6 }}>
                 <Badge
                   label={currentUser?.role === 'admin' ? 'Administrator' : 'Collector'}
-                  type={currentUser?.role === 'admin' ? 'success' : 'neutral'}
+                  type={currentUser?.role === 'admin' ? 'accent' : 'neutral'}
                 />
               </View>
             </View>
@@ -177,7 +177,7 @@ export default function SettingsScreen() {
                     <Text style={styles.teamName}>{u.name}</Text>
                     <Text style={styles.teamEmail}>{u.email}</Text>
                   </View>
-                  <Badge label={u.role === 'admin' ? 'Admin' : 'Collector'} type={u.role === 'admin' ? 'success' : 'neutral'} />
+                  <Badge label={u.role === 'admin' ? 'Admin' : 'Collector'} type={u.role === 'admin' ? 'accent' : 'neutral'} />
                 </View>
               ))
             )}
@@ -195,7 +195,7 @@ export default function SettingsScreen() {
               <Text style={styles.secLabel}>{item.label}</Text>
               <View style={styles.secRight}>
                 <Text style={styles.secValue}>{item.value}</Text>
-                <Ionicons name="checkmark" size={14} color={colors.green500} />
+                <Ionicons name="checkmark" size={14} color={colors.gray700} />
               </View>
             </View>
           ))}
@@ -204,7 +204,7 @@ export default function SettingsScreen() {
         {/* ── Architecture Note ── */}
         <Card style={styles.archCard}>
           <View style={styles.cardHeadRow}>
-            <Ionicons name="construct-outline" size={16} color={colors.green700} />
+            <Ionicons name="construct-outline" size={16} color={colors.gray900} />
             <Text style={styles.archTitle}>Tech Stack</Text>
           </View>
           {[
@@ -318,8 +318,8 @@ function makeStyles(colors) {
   teamName:    { fontFamily: Typography.bold, fontSize: 13, color: colors.gray900 },
   teamEmail:   { fontFamily: Typography.body, fontSize: 11, color: colors.gray400 },
 
-  archCard:    { backgroundColor: colors.green50, borderWidth: 1, borderColor: colors.green100 },
-  archTitle:   { fontFamily: Typography.bold, fontSize: 13, color: colors.green700, marginBottom: 10 },
+  archCard:    { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.gray50 },
+  archTitle:   { fontFamily: Typography.bold, fontSize: 13, color: colors.gray900, marginBottom: 10 },
   archLine:    { fontFamily: Typography.body, fontSize: 12, color: colors.gray600, lineHeight: 22 },
   archKey:     { fontFamily: Typography.bold },
 

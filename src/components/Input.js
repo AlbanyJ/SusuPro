@@ -53,7 +53,7 @@ function makeStyles(colors) {
     label:          { fontFamily: Typography.bold, fontSize: 11, color: colors.gray500, letterSpacing: 1 },
     req:            { color: colors.red },
     inputRow:       { flexDirection: 'row', alignItems: 'center', position: 'relative' },
-    prefix:         { position: 'absolute', left: 14, zIndex: 1, color: colors.green600, fontFamily: Typography.bold, fontSize: 15 },
+    prefix:         { position: 'absolute', left: 14, zIndex: 1, color: colors.gray700, fontFamily: Typography.bold, fontSize: 15 },
     input:          {
       flex: 1, borderWidth: 1.5, borderColor: 'transparent',
       borderRadius: Radius.sm, padding: 13, fontFamily: Typography.body,

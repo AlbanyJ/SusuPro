@@ -7,11 +7,14 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Typography } from '../constants/theme';
 import { useTheme } from '../store/ThemeContext';
 
-export default function Badge({ label, type = 'success' }) {
+export default function Badge({ label, type = 'neutral' }) {
   const { colors } = useTheme();
 
   const config = {
-    success: { bg: colors.green100, color: colors.green600 },
+    // Reserved for genuine rarity/emphasis (e.g. an Admin role badge) —
+    // a dark chip rather than green, since green is reserved for money
+    // and primary actions elsewhere in the app.
+    accent:  { bg: colors.ink, color: colors.white },
     danger:  { bg: colors.redLight,  color: colors.red },
     warning: { bg: colors.amberLight, color: colors.amber },
     neutral: { bg: colors.gray100,   color: colors.gray500 },

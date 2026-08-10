@@ -150,8 +150,8 @@ function makeStyles(colors, shadows) {
     errorBox:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.redLight, borderRadius: Radius.sm, padding: 12 },
     errorText:   { flex: 1, fontFamily: Typography.medium, fontSize: 13, color: colors.red },
 
-    demoBox:     { marginTop: 20, backgroundColor: colors.green50, borderRadius: Radius.sm, padding: 14, borderWidth: 1, borderColor: colors.green100 },
-    demoLabel:   { fontFamily: Typography.bold, fontSize: 10, color: colors.green600, letterSpacing: 1, marginBottom: 8 },
+    demoBox:     { marginTop: 20, backgroundColor: colors.gray50, borderRadius: Radius.sm, padding: 14, borderWidth: 1, borderColor: colors.gray100 },
+    demoLabel:   { fontFamily: Typography.bold, fontSize: 10, color: colors.gray700, letterSpacing: 1, marginBottom: 8 },
     demoItem:    { fontFamily: Typography.body, fontSize: 12, color: colors.gray500, lineHeight: 22 },
 
     footRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 24 },

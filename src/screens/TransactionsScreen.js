@@ -179,11 +179,11 @@ export default function TransactionsScreen() {
           return (
             <Card style={styles.txnCard}>
               <View style={styles.txnRow}>
-                <View style={[styles.txnIconBox, { backgroundColor: isContrib ? colors.green100 : colors.redLight }]}>
+                <View style={styles.txnIconBox}>
                   <Ionicons
                     name={isContrib ? 'arrow-down' : 'arrow-up'}
                     size={18}
-                    color={isContrib ? colors.green600 : colors.red}
+                    color={colors.gray700}
                   />
                 </View>
                 <View style={styles.txnInfo}>
@@ -198,7 +198,7 @@ export default function TransactionsScreen() {
                   </Text>
                   <Badge
                     label={pending ? 'Pending Sync' : (isContrib ? 'Saved' : 'Withdrawn')}
-                    type={pending ? 'warning' : (isContrib ? 'success' : 'danger')}
+                    type={pending ? 'warning' : 'neutral'}
                   />
                 </View>
               </View>
@@ -345,7 +345,7 @@ function makeStyles(colors) {
 
   txnCard:      { padding: 14 },
   txnRow:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  txnIconBox:   { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  txnIconBox:   { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.gray100 },
   txnInfo:      { flex: 1 },
   txnName:      { fontFamily: Typography.bold, fontSize: 14, color: colors.gray900 },
   txnMeta:      { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },

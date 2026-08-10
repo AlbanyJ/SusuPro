@@ -152,7 +152,7 @@ export default function CustomersScreen() {
                 <View style={styles.customerInfo}>
                   <View style={styles.nameRow}>
                     <Text style={styles.customerName}>{c.name}</Text>
-                    <Badge label={c.active ? 'Active' : 'Inactive'} type={c.active ? 'success' : 'neutral'} />
+                    <Badge label={c.active ? 'Active' : 'Inactive'} type="neutral" />
                   </View>
                   <Text style={styles.customerMeta}>
                     {c.phone}{c.idNo ? ` · ${c.idNo}` : ''}
@@ -314,7 +314,7 @@ function makeStyles(colors) {
   profilePhone:     { fontFamily: Typography.body, fontSize: 13, color: colors.gray400 },
   profileId:        { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },
 
-  balanceSummary:   { backgroundColor: colors.green50, borderRadius: Radius.sm, padding: 16, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  balanceSummary:   { backgroundColor: colors.gray50, borderRadius: Radius.sm, padding: 16, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   summaryLabel:     { fontFamily: Typography.bold, fontSize: 10, color: colors.gray400, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
   summaryAmount:    { fontFamily: Typography.display, fontSize: 26, color: colors.green600 },
   summaryDate:      { fontFamily: Typography.bold, fontSize: 14, color: colors.gray700 },

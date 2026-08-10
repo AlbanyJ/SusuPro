@@ -17,7 +17,7 @@ export default function Button({
 
   const variants = {
     primary:   { gradient: gradients.primary, color: colors.white, shadow: shadows.glow },
-    secondary: { bg: colors.green50,  color: colors.green600 },
+    secondary: { bg: colors.gray100,  color: colors.gray700 },
     ghost:     { bg: 'transparent',   color: colors.gray700 },
     danger:    { gradient: gradients.red, color: colors.white, shadow: shadows.md },
   };

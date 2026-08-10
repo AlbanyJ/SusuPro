@@ -175,7 +175,7 @@ export default function DashboardScreen() {
                   <Text style={[styles.txnAmount, { color: isContrib ? colors.green600 : colors.red }]}>
                     {isContrib ? '+' : '−'}{fmt(t.amount)}
                   </Text>
-                  <Badge label={isContrib ? 'Saved' : 'Withdrawn'} type={isContrib ? 'success' : 'danger'} />
+                  <Badge label={isContrib ? 'Saved' : 'Withdrawn'} type="neutral" />
                 </View>
               </View>
             </Card>

@@ -23,7 +23,7 @@ export default function StatCard({ label, value, sub, icon, accent = false }) {
         {sub && <Text style={[styles.sub, accent && styles.subAccent]}>{sub}</Text>}
       </View>
       <View style={[styles.iconWrap, accent && styles.iconWrapAccent]}>
-        <Ionicons name={icon} size={18} color={accent ? colors.green300 : colors.green600} />
+        <Ionicons name={icon} size={18} color={accent ? colors.green300 : colors.gray700} />
       </View>
     </View>
   );
@@ -56,7 +56,7 @@ function makeStyles(colors, shadows) {
     valueAccent: { color: colors.white },
     sub:         { fontFamily: Typography.body, fontSize: 11, color: colors.gray400, marginTop: 2 },
     subAccent:   { color: 'rgba(255,255,255,0.5)' },
-    iconWrap:      { width: 32, height: 32, borderRadius: Radius.sm, backgroundColor: colors.green50, alignItems: 'center', justifyContent: 'center' },
+    iconWrap:      { width: 32, height: 32, borderRadius: Radius.sm, backgroundColor: colors.gray50, alignItems: 'center', justifyContent: 'center' },
     iconWrapAccent:{ backgroundColor: 'rgba(255,255,255,0.08)' },
   });
 }
