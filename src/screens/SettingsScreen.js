@@ -134,6 +134,9 @@ export default function SettingsScreen() {
               onValueChange={toggleMode}
               trackColor={{ false: colors.gray200, true: colors.green600 }}
               thumbColor={colors.white}
+              accessibilityRole="switch"
+              accessibilityLabel="Dark mode"
+              accessibilityState={{ checked: mode === 'dark' }}
             />
           </View>
         </Card>
@@ -236,7 +239,13 @@ export default function SettingsScreen() {
           <View style={styles.modal}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Add Team Member</Text>
-              <TouchableOpacity onPress={() => setShowAdd(false)} style={styles.closeBtn}>
+              <TouchableOpacity
+                onPress={() => setShowAdd(false)}
+                style={styles.closeBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <Ionicons name="close" size={16} color={colors.gray500} />
               </TouchableOpacity>
             </View>
@@ -252,6 +261,9 @@ export default function SettingsScreen() {
                     key={r}
                     onPress={() => setForm(f => ({ ...f, role: r }))}
                     style={[styles.roleBtn, form.role === r && styles.roleBtnActive]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: form.role === r }}
+                    accessibilityLabel={r === 'admin' ? 'Administrator' : 'Collector'}
                   >
                     <Text style={[styles.roleBtnLabel, form.role === r && styles.roleBtnLabelActive]}>
                       {r === 'admin' ? 'Administrator' : 'Collector'}
@@ -317,7 +329,7 @@ function makeStyles(colors) {
   modal:        { backgroundColor: colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
   modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
   modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: colors.gray900 },
-  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.gray100, alignItems: 'center', justifyContent: 'center' },
+  closeBtn:     { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gray100, alignItems: 'center', justifyContent: 'center' },
   modalBody:    { padding: 20, gap: 14 },
   fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: colors.gray500, letterSpacing: 1 },
 

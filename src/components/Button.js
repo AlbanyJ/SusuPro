@@ -36,6 +36,9 @@ export default function Button({
         onPress={onPress}
         disabled={disabled || loading}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: disabled || loading, busy: loading }}
         style={[
           styles.gradientWrap,
           fullWidth && styles.fullWidth,
@@ -61,6 +64,9 @@ export default function Button({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
       style={[
         styles.btn,
         { backgroundColor: v.bg, paddingVertical: padding },

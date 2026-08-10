@@ -148,6 +148,9 @@ export default function TransactionsScreen() {
               key={f.key}
               onPress={() => setFilter(f.key)}
               style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: filter === f.key }}
+              accessibilityLabel={`Filter: ${f.label}`}
             >
               <Text style={[styles.filterLabel, filter === f.key && styles.filterLabelActive]}>
                 {f.label}
@@ -213,7 +216,13 @@ export default function TransactionsScreen() {
           <View style={styles.modal}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Record Transaction</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeBtn}>
+              <TouchableOpacity
+                onPress={() => setShowModal(false)}
+                style={styles.closeBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <Ionicons name="close" size={16} color={colors.gray500} />
               </TouchableOpacity>
             </View>
@@ -231,6 +240,9 @@ export default function TransactionsScreen() {
                       styles.typeBtn,
                       txType === t && (t === 'contribution' ? styles.typeBtnContrib : styles.typeBtnWithdraw),
                     ]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: txType === t }}
+                    accessibilityLabel={t === 'contribution' ? 'Contribution' : 'Withdrawal'}
                   >
                     <Ionicons
                       name={t === 'contribution' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
@@ -253,6 +265,9 @@ export default function TransactionsScreen() {
                     key={c.id}
                     onPress={() => setCustId(c.id)}
                     style={[styles.custChip, custId === c.id && styles.custChipActive]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: custId === c.id }}
+                    accessibilityLabel={`${c.name}, balance ${fmt(c.balance)}`}
                   >
                     <Text style={[styles.custChipText, custId === c.id && styles.custChipTextActive]}>
                       {c.name.split(' ')[0]}
@@ -341,7 +356,7 @@ function makeStyles(colors) {
   modal:        { backgroundColor: colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
   modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
   modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: colors.gray900 },
-  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.gray100, alignItems: 'center', justifyContent: 'center' },
+  closeBtn:     { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gray100, alignItems: 'center', justifyContent: 'center' },
   modalBody:    { padding: 20 },
   fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: colors.gray500, letterSpacing: 1, marginBottom: 8 },
 

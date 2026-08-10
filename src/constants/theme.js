@@ -68,7 +68,7 @@ const light = {
   gray50:   '#f4efe2',
   gray100:  '#ece4d3',
   gray200:  '#ddd0b3',
-  gray400:  '#9a8f78',
+  gray400:  '#75674f',   // darkened from #9a8f78 — that failed WCAG AA (2.84:1) against the cream bg; this passes (4.9:1)
   gray500:  '#71685a',
   gray600:  '#544e43',
   gray700:  '#3a352c',
@@ -86,13 +86,13 @@ export const Palettes = { dark, light };
 export const GradientPalettes = {
   dark: {
     hero:    ['#0c1912', '#164a30', '#1a7344'],   // deep-to-brand depth
-    primary: ['#3daf73', '#1a7344'],
+    primary: ['#2a8353', '#1a7344'],   // darkened from #3daf73 — that failed WCAG AA (2.77:1) against white button text; this passes (4.7:1)
     ink:     ['#132b1f', '#0c1912'],
     red:     ['#ef4444', '#b91c1c'],
   },
   light: {
     hero:    ['#3daf73', '#259158', '#1a7344'],   // brighter range — no near-black start on a light page
-    primary: ['#3daf73', '#1a7344'],
+    primary: ['#2a8353', '#1a7344'],   // darkened from #3daf73 — that failed WCAG AA (2.77:1) against white button text; this passes (4.7:1)
     ink:     ['#132b1f', '#0c1912'],               // still dark — the one deliberate dark accent in light mode
     red:     ['#ef4444', '#b91c1c'],
   },

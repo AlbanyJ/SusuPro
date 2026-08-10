@@ -59,9 +59,9 @@ export default function LoginScreen() {
 
           {/* ── Logo ── */}
           <View style={styles.logoRow}>
-            <View style={styles.logoIcon}>
+            <LinearGradient colors={gradients.primary} style={styles.logoIcon}>
               <Ionicons name="wallet-outline" size={26} color={colors.white} />
-            </View>
+            </LinearGradient>
             <View>
               <Text style={styles.brandName}>SusuPro</Text>
               <Text style={styles.brandSub}>Daily Savings Platform</Text>
@@ -136,7 +136,7 @@ function makeStyles(colors, shadows) {
     wrap:        { width: '100%', maxWidth: 400, alignSelf: 'center' },
 
     logoRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 8 },
-    logoIcon:    { width: 52, height: 52, borderRadius: 16, backgroundColor: colors.green400, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+    logoIcon:    { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', ...shadows.md },
     brandName:   { fontFamily: Typography.display, fontSize: 28, color: colors.white },
     brandSub:    { fontFamily: Typography.body, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: 1.2 },
     tagline:     { fontFamily: Typography.body, fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginBottom: 32 },
