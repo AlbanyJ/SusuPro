@@ -6,8 +6,8 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList,
-  TextInput, TouchableOpacity, Modal, ScrollView, Alert, RefreshControl,
+  View, Text, StyleSheet, FlatList, Platform,
+  TextInput, TouchableOpacity, Modal, ScrollView, Alert, RefreshControl, KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -230,7 +230,10 @@ export default function CustomersScreen() {
 
       {/* ── Add Customer Modal ── */}
       <Modal visible={showAdd} animationType="slide" transparent>
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modal}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Add New Customer</Text>
@@ -238,7 +241,7 @@ export default function CustomersScreen() {
                 <Ionicons name="close" size={16} color={Colors.gray500} />
               </TouchableOpacity>
             </View>
-            <View style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               <Input label="Full Name" value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} placeholder="e.g. Akosua Mensah" required />
               <Input label="Phone Number" value={form.phone} onChangeText={v => setForm(f => ({ ...f, phone: v }))} placeholder="e.g. 0244123456" keyboardType="phone-pad" required />
               <Input label="ID Number (Optional)" value={form.idNo} onChangeText={v => setForm(f => ({ ...f, idNo: v }))} placeholder="e.g. GHA-2341" />
@@ -246,9 +249,9 @@ export default function CustomersScreen() {
                 <Button label="Cancel" onPress={() => setShowAdd(false)} variant="ghost" style={{ flex: 1 }} />
                 <Button label="Add Customer" onPress={handleAdd} loading={loading} style={{ flex: 1 }} />
               </View>
-            </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

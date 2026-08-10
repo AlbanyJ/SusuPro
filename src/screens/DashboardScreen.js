@@ -7,13 +7,14 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp, loadAppData } from '../store/AppContext';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
-import { Colors, Typography, Spacing, Radius, Shadows } from '../constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadows, Gradients } from '../constants/theme';
 
 // Format numbers as GHS currency
 function fmt(n) {
@@ -78,7 +79,12 @@ export default function DashboardScreen() {
     >
 
       {/* ── Hero Header ─────────────────────────────────────── */}
-      <View style={[styles.hero, { paddingTop: insets.top + 16 }]}>
+      <LinearGradient
+        colors={Gradients.hero}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.hero, { paddingTop: insets.top + 16 }]}
+      >
         <View style={styles.heroTop}>
           <View>
             <Text style={styles.greetSub}>Good morning,</Text>
@@ -98,7 +104,7 @@ export default function DashboardScreen() {
           <Text style={styles.heroAmount}>{fmt(totalSavings)}</Text>
           <Text style={styles.heroSub}>{activeCount} active members</Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* ── Stat Cards ──────────────────────────────────────── */}
       <View style={styles.content}>
@@ -183,7 +189,7 @@ const styles = StyleSheet.create({
   screen:  { flex: 1, backgroundColor: Colors.offWhite },
 
   // Hero
-  hero:       { backgroundColor: Colors.green500, paddingHorizontal: 20, paddingTop: 28, paddingBottom: 44 },
+  hero:       { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 48 },
   heroTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   greetSub:   { fontFamily: Typography.medium, fontSize: 13, color: 'rgba(255,255,255,0.65)' },
   greetName:  { fontFamily: Typography.display, fontSize: 22, color: Colors.white },
@@ -194,10 +200,10 @@ const styles = StyleSheet.create({
   onlineText: { fontFamily: Typography.semiBold, fontSize: 11, color: 'rgba(255,255,255,0.85)' },
   offlineText:{ color: Colors.amber },
 
-  heroTotal:  { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: Radius.md, padding: 18 },
-  heroLabel:  { fontFamily: Typography.bold, fontSize: 10, color: 'rgba(255,255,255,0.65)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
-  heroAmount: { fontFamily: Typography.display, fontSize: 34, color: Colors.white },
-  heroSub:    { fontFamily: Typography.body, fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 },
+  heroTotal:  { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: Radius.md, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  heroLabel:  { fontFamily: Typography.bold, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 6 },
+  heroAmount: { fontFamily: Typography.display, fontSize: Typography.size.hero, letterSpacing: -0.5, color: Colors.white },
+  heroSub:    { fontFamily: Typography.body, fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 6 },
 
   // Content
   content:    { padding: Spacing.lg, marginTop: -12 },

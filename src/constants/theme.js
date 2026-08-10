@@ -15,9 +15,14 @@ export const Colors = {
   green600: '#1a7344',
   green700: '#145534',
 
+  // ── Ink (deep premium dark surface — hero cards, primary CTAs) ──
+  ink:      '#0c1912',
+  ink700:   '#132b1f',
+  ink600:   '#1c3d2b',
+
   // ── Neutrals ──
   white:    '#ffffff',
-  offWhite: '#f8faf9',
+  offWhite: '#f7f9f8',
   gray50:   '#f3f4f6',
   gray100:  '#e8eae9',
   gray200:  '#d1d5db',
@@ -33,14 +38,16 @@ export const Colors = {
   amberLight:  '#fef3c7',
 };
 
+// Used with <LinearGradient colors={Gradients.x}>
 export const Gradients = {
-  green:      ['#259158', '#1a7344'],   // used with LinearGradient
-  greenSoft:  ['#3daf73', '#259158'],
-  red:        ['#dc2626', '#b91c1c'],
+  hero:    ['#0c1912', '#164a30', '#1a7344'],   // dashboard hero / login bg — deep-to-brand depth
+  primary: ['#3daf73', '#1a7344'],              // primary buttons
+  ink:     ['#132b1f', '#0c1912'],              // dark accent cards
+  red:     ['#ef4444', '#b91c1c'],              // danger buttons
 };
 
 export const Typography = {
-  display: 'PlayfairDisplay-Bold',   // headings, big numbers
+  display: 'DMSans-ExtraBold',       // headings, big numbers
   body:    'DMSans-Regular',         // normal text
   medium:  'DMSans-Medium',
   semiBold:'DMSans-SemiBold',
@@ -54,7 +61,7 @@ export const Typography = {
     lg:   17,
     xl:   20,
     xxl:  24,
-    hero: 34,
+    hero: 40,
   },
 };
 
@@ -68,32 +75,40 @@ export const Spacing = {
 };
 
 export const Radius = {
-  sm: 10,
-  md: 16,
-  lg: 24,
+  sm: 12,
+  md: 18,
+  lg: 26,
   full: 999,
 };
 
 export const Shadows = {
   sm: {
-    shadowColor: '#259158',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius: 8,
+    shadowColor: '#0c1912',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 3,
   },
   md: {
-    shadowColor: '#259158',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#0c1912',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.14,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowRadius: 20,
+    elevation: 8,
   },
   lg: {
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 32,
+    elevation: 16,
+  },
+  // Colored "glow" shadow for the brand-green primary button/hero
+  glow: {
+    shadowColor: '#1a7344',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 10,
   },
 };
