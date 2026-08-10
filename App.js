@@ -7,26 +7,80 @@
 // ============================================================
 
 import React, { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { AppProvider, useApp, ACTIONS } from './src/store/AppContext';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+  DMSans_800ExtraBold,
+} from '@expo-google-fonts/dm-sans';
+import { AppProvider, useApp, ACTIONS, loadAppData } from './src/store/AppContext';
 import { initDatabase }        from './src/database/sqlite';
 import { startNetworkWatcher } from './src/services/syncService';
-import AppNavigator            from './src/navigation/AppNavigator';
+import { onAuthChange, getUserProfile } from './src/services/authService';
+import { Colors } from './src/constants/theme';
+import AppNavigator             from './src/navigation/AppNavigator';
 
 // ── Inner component that has access to global state ───────────
 function AppInner() {
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
+
+  const [fontsLoaded] = useFonts({
+    'DMSans-Regular':       DMSans_400Regular,
+    'DMSans-Medium':        DMSans_500Medium,
+    'DMSans-SemiBold':      DMSans_600SemiBold,
+    'DMSans-Bold':          DMSans_700Bold,
+    'DMSans-ExtraBold':     DMSans_800ExtraBold,
+  });
 
   useEffect(() => {
     // 1. Create SQLite tables on first launch
     initDatabase().catch(console.error);
 
     // 2. Start watching network — auto-syncs when online
-    const unsubscribe = startNetworkWatcher(dispatch, ACTIONS);
+    const unsubscribeNetwork = startNetworkWatcher(dispatch, ACTIONS);
+
+    // 3. Rehydrate the session on launch, and react to sign in/out
+    //    from anywhere (including the secondary-app trick used to
+    //    create new team members).
+    const unsubscribeAuth = onAuthChange(async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const profile = await getUserProfile(firebaseUser.uid);
+          if (profile) {
+            dispatch({ type: ACTIONS.LOGIN, payload: profile });
+            await loadAppData(dispatch);
+          } else {
+            dispatch({ type: ACTIONS.LOGOUT });
+          }
+        } catch (err) {
+          console.error('[Auth] Failed to load user profile:', err.message);
+          dispatch({ type: ACTIONS.LOGOUT });
+        }
+      } else {
+        dispatch({ type: ACTIONS.LOGOUT });
+      }
+      dispatch({ type: ACTIONS.SET_AUTH_LOADING, payload: false });
+    });
 
     // Cleanup when app closes
-    return () => unsubscribe && unsubscribe();
+    return () => {
+      unsubscribeNetwork && unsubscribeNetwork();
+      unsubscribeAuth && unsubscribeAuth();
+    };
   }, []);
+
+  if (state.authLoading || !fontsLoaded) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.green700 }}>
+        <ActivityIndicator size="large" color={Colors.white} />
+      </View>
+    );
+  }
 
   return (
     <>
@@ -39,9 +93,13 @@ function AppInner() {
 // ── Root export — this is what Expo loads ─────────────────────
 export default function App() {
   return (
-    // AppProvider wraps everything so ALL screens share the same data
-    <AppProvider>
-      <AppInner />
-    </AppProvider>
+    // SafeAreaProvider lets every screen (and the tab bar) know how
+    // much space the notch/status bar/home indicator take up.
+    <SafeAreaProvider>
+      {/* AppProvider wraps everything so ALL screens share the same data */}
+      <AppProvider>
+        <AppInner />
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }

@@ -13,24 +13,32 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
+// ── GET USER PROFILE ──────────────────────────────────────────
+// Firebase Auth only knows email/uid — role, name, avatar live in
+// the matching Firestore users/{uid} document.
+export async function getUserProfile(uid) {
+  const userDoc = await getDoc(doc(db, 'users', uid));
+  if (!userDoc.exists()) return null;
+  return { id: uid, ...userDoc.data() };
+}
+
 // ── LOGIN ─────────────────────────────────────────────────────
 // Called when user taps "Sign In" on the login screen.
 // Firebase checks email + password automatically.
 export async function loginUser(email, password) {
   try {
-    // Step 1: Firebase checks the password (bcrypt internally)
+    // Step 1: Firebase checks the password
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const uid = userCredential.user.uid;
 
     // Step 2: Get this user's profile from Firestore
     // (role, name, avatar — stuff Firebase Auth doesn't store)
-    const userDoc = await getDoc(doc(db, 'users', uid));
+    const profile = await getUserProfile(uid);
 
-    if (!userDoc.exists()) {
+    if (!profile) {
       throw new Error('User profile not found.');
     }
 
-    const profile = { id: uid, ...userDoc.data() };
     return { success: true, user: profile };
 
   } catch (error) {

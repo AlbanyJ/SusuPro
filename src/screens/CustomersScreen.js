@@ -6,10 +6,12 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList,
-  TextInput, TouchableOpacity, Modal, ScrollView, Alert,
+  View, Text, StyleSheet, FlatList, Platform,
+  TextInput, TouchableOpacity, Modal, ScrollView, Alert, RefreshControl, KeyboardAvoidingView,
 } from 'react-native';
-import { useApp, ACTIONS } from '../store/AppContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useApp, ACTIONS, loadAppData } from '../store/AppContext';
 import { addCustomer, updateCustomer } from '../services/customerService';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
@@ -19,17 +21,17 @@ import Input from '../components/Input';
 import { Colors, Typography, Spacing, Radius, Shadows } from '../constants/theme';
 
 function fmt(n) { return `GHS ${Number(n).toLocaleString('en-GH')}`; }
-function uid()  { return Math.random().toString(36).substr(2, 9); }
 
 export default function CustomersScreen() {
   const { state, dispatch } = useApp();
-  const { customers, transactions, currentUser } = state;
+  const { customers, transactions, currentUser, dataLoading } = state;
   const isAdmin = currentUser?.role === 'admin';
 
   const [search,    setSearch]    = useState('');
   const [showAdd,   setShowAdd]   = useState(false);
   const [selected,  setSelected]  = useState(null);
   const [loading,   setLoading]   = useState(false);
+  const [toggling,  setToggling]  = useState(false);
 
   // Add form state
   const [form, setForm] = useState({ name: '', phone: '', idNo: '' });
@@ -61,42 +63,41 @@ export default function CustomersScreen() {
     }
     setLoading(true);
 
-    // Build avatar initials from name
-    const avatar = form.name.trim().split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
-    const newCustomer = {
-      id: uid(),
-      name: form.name.trim(),
-      phone: form.phone.trim(),
-      idNo: form.idNo.trim(),
-      balance: 0,
-      active: true,
-      avatar,
-      joinDate: new Date().toISOString().split('T')[0],
-    };
+    const result = await addCustomer(form, currentUser.id);
 
-    // Update global state immediately (optimistic update)
-    dispatch({ type: ACTIONS.ADD_CUSTOMER, payload: newCustomer });
+    if (result.success) {
+      dispatch({ type: ACTIONS.ADD_CUSTOMER, payload: result.data });
+      setForm({ name: '', phone: '', idNo: '' });
+      setShowAdd(false);
+    } else {
+      Alert.alert('Error', result.error || 'Could not add customer.');
+    }
 
-    // Also save to Firebase (in production)
-    // await addCustomer(form, currentUser.id);
-
-    setForm({ name: '', phone: '', idNo: '' });
-    setShowAdd(false);
     setLoading(false);
   }
 
   // ── Toggle active/inactive ────────────────────────────────
-  function handleToggleActive(customer) {
+  async function handleToggleActive(customer) {
     const newStatus = !customer.active;
-    dispatch({
-      type: ACTIONS.UPDATE_CUSTOMER,
-      payload: { id: customer.id, active: newStatus },
-    });
-    setSelected(prev => prev ? { ...prev, active: newStatus } : null);
+    setToggling(true);
+
+    const result = await updateCustomer(customer.id, { active: newStatus });
+
+    if (result.success) {
+      dispatch({
+        type: ACTIONS.UPDATE_CUSTOMER,
+        payload: { id: customer.id, active: newStatus },
+      });
+      setSelected(prev => prev ? { ...prev, active: newStatus } : null);
+    } else {
+      Alert.alert('Error', result.error || 'Could not update customer.');
+    }
+
+    setToggling(false);
   }
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -108,7 +109,7 @@ export default function CustomersScreen() {
         </View>
         {/* Search */}
         <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search" size={16} color={Colors.gray400} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or phone…"
@@ -125,8 +126,13 @@ export default function CustomersScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[Colors.green600]} />
+        }
         ListEmptyComponent={
-          <Text style={styles.empty}>No customers found.</Text>
+          <Text style={styles.empty}>
+            {dataLoading ? 'Loading customers…' : 'No customers found.'}
+          </Text>
         }
         renderItem={({ item: c }) => (
           <TouchableOpacity activeOpacity={0.85} onPress={() => setSelected(c)}>
@@ -159,7 +165,7 @@ export default function CustomersScreen() {
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Customer Details</Text>
               <TouchableOpacity onPress={() => setSelected(null)} style={styles.closeBtn}>
-                <Text style={styles.closeIcon}>✕</Text>
+                <Ionicons name="close" size={16} color={Colors.gray500} />
               </TouchableOpacity>
             </View>
 
@@ -209,6 +215,8 @@ export default function CustomersScreen() {
                   <Button
                     label={selected.active ? 'Deactivate Customer' : 'Activate Customer'}
                     onPress={() => handleToggleActive(selected)}
+                    loading={toggling}
+                    disabled={toggling}
                     variant={selected.active ? 'danger' : 'secondary'}
                     fullWidth
                     style={styles.actionBtn}
@@ -222,15 +230,18 @@ export default function CustomersScreen() {
 
       {/* ── Add Customer Modal ── */}
       <Modal visible={showAdd} animationType="slide" transparent>
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modal}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Add New Customer</Text>
               <TouchableOpacity onPress={() => setShowAdd(false)} style={styles.closeBtn}>
-                <Text style={styles.closeIcon}>✕</Text>
+                <Ionicons name="close" size={16} color={Colors.gray500} />
               </TouchableOpacity>
             </View>
-            <View style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               <Input label="Full Name" value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} placeholder="e.g. Akosua Mensah" required />
               <Input label="Phone Number" value={form.phone} onChangeText={v => setForm(f => ({ ...f, phone: v }))} placeholder="e.g. 0244123456" keyboardType="phone-pad" required />
               <Input label="ID Number (Optional)" value={form.idNo} onChangeText={v => setForm(f => ({ ...f, idNo: v }))} placeholder="e.g. GHA-2341" />
@@ -238,11 +249,11 @@ export default function CustomersScreen() {
                 <Button label="Cancel" onPress={() => setShowAdd(false)} variant="ghost" style={{ flex: 1 }} />
                 <Button label="Add Customer" onPress={handleAdd} loading={loading} style={{ flex: 1 }} />
               </View>
-            </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

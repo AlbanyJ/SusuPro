@@ -11,6 +11,7 @@ import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
 
 import LoginScreen        from '../screens/LoginScreen';
@@ -27,11 +28,11 @@ const Tab   = createBottomTabNavigator();
 
 // ── Tab icons ────────────────────────────────────────────────
 const TAB_ICONS = {
-  Dashboard:    '🏠',
-  Customers:    '👥',
-  Transactions: '💸',
-  Reports:      '📊',
-  Account:      '⚙️',
+  Dashboard:    { focused: 'home',              unfocused: 'home-outline' },
+  Customers:    { focused: 'people',            unfocused: 'people-outline' },
+  Transactions: { focused: 'swap-horizontal',   unfocused: 'swap-horizontal-outline' },
+  Reports:      { focused: 'bar-chart',         unfocused: 'bar-chart-outline' },
+  Account:      { focused: 'settings',          unfocused: 'settings-outline' },
 };
 
 // ── Main tab bar (shown when logged in) ───────────────────────
@@ -47,15 +48,20 @@ function MainTabs() {
           backgroundColor: Colors.white,
           borderTopColor: Colors.gray100,
           borderTopWidth: 1,
-          height: 70,
-          paddingBottom: 10,
+          height: 76,
+          paddingTop: 10,
+          paddingBottom: 14,
         },
         tabBarIcon: ({ focused }) => (
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 22 }}>{TAB_ICONS[route.name]}</Text>
-            {focused && (
-              <View style={{ width: 20, height: 3, borderRadius: 99, backgroundColor: Colors.green600, marginTop: 3 }} />
-            )}
+          <View style={[
+            { width: 40, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+            focused && { backgroundColor: Colors.green50 },
+          ]}>
+            <Ionicons
+              name={focused ? TAB_ICONS[route.name].focused : TAB_ICONS[route.name].unfocused}
+              size={20}
+              color={focused ? Colors.green600 : Colors.gray400}
+            />
           </View>
         ),
         tabBarLabel: ({ focused }) => (

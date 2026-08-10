@@ -30,7 +30,7 @@ const CUSTOMER_COLLECTION = 'customers';
 //   1. The transaction record is saved
 //   2. The customer balance is updated
 // Both happen together or not at all.
-export async function recordTransaction({ customerId, type, amount, collectorId, notes }) {
+export async function recordTransaction({ customerId, type, amount, collectorId, collectorName, notes }) {
   try {
     // Validate inputs before touching the database
     if (!customerId) throw new Error('Customer is required.');
@@ -38,6 +38,7 @@ export async function recordTransaction({ customerId, type, amount, collectorId,
     if (!['contribution', 'withdrawal'].includes(type)) throw new Error('Invalid transaction type.');
 
     const customerRef = doc(db, CUSTOMER_COLLECTION, customerId);
+    const txnRef = doc(collection(db, TXN_COLLECTION));
 
     // runTransaction guarantees atomicity (all-or-nothing)
     await runTransaction(db, async (firestoreTransaction) => {
@@ -63,13 +64,18 @@ export async function recordTransaction({ customerId, type, amount, collectorId,
         updatedAt: serverTimestamp(),
       });
 
-      // Add transaction record to the transactions collection
-      const txnRef = doc(collection(db, TXN_COLLECTION));
+      // Add transaction record to the transactions collection.
+      // collectorName is denormalized onto the record so any
+      // logged-in user can show "who did this" without needing
+      // read access to other users' profiles (firestore.rules
+      // only lets a user read their own profile, or an admin
+      // read everyone's).
       firestoreTransaction.set(txnRef, {
         customerId,
         type,
         amount,
         collectorId,
+        collectorName: collectorName || '',
         notes:     notes || '',
         status:    'completed',
         date:      new Date().toISOString().split('T')[0],
@@ -78,7 +84,7 @@ export async function recordTransaction({ customerId, type, amount, collectorId,
       });
     });
 
-    return { success: true };
+    return { success: true, id: txnRef.id };
   } catch (error) {
     return { success: false, error: error.message };
   }

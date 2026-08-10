@@ -4,6 +4,7 @@
 // ============================================================
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Radius, Shadows } from '../constants/theme';
  
 export default function Toast({ message, type = 'success', onHide }) {
@@ -25,16 +26,16 @@ export default function Toast({ message, type = 'success', onHide }) {
     info:    Colors.green500,
   };
  
-  const icons = { success: '✓', error: '✕', info: 'ℹ' };
- 
+  const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
+
   return (
     <Animated.View style={[styles.toast, { backgroundColor: bgMap[type], opacity }]}>
-      <Text style={styles.icon}>{icons[type]}</Text>
+      <Ionicons name={icons[type]} size={18} color={Colors.white} />
       <Text style={styles.message}>{message}</Text>
     </Animated.View>
   );
 }
- 
+
 const styles = StyleSheet.create({
   toast: {
     position: 'absolute', top: 60, alignSelf: 'center',
@@ -42,7 +43,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm, paddingHorizontal: 20, paddingVertical: 12,
     maxWidth: '90%', zIndex: 9999, ...Shadows.lg,
   },
-  icon:    { color: Colors.white, fontFamily: Typography.bold, fontSize: 16 },
   message: { color: Colors.white, fontFamily: Typography.medium, fontSize: 14, flexShrink: 1 },
 });
  

@@ -4,8 +4,9 @@
 // ============================================================
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { useApp } from '../store/AppContext';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useApp, loadAppData } from '../store/AppContext';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
 import Avatar from '../components/Avatar';
@@ -14,8 +15,8 @@ import { Colors, Typography, Spacing, Radius, Shadows } from '../constants/theme
 function fmt(n) { return `GHS ${Number(n).toLocaleString('en-GH')}`; }
 
 export default function ReportsScreen() {
-  const { state } = useApp();
-  const { transactions, customers } = state;
+  const { state, dispatch } = useApp();
+  const { transactions, customers, dataLoading } = state;
   const todayStr = new Date().toISOString().split('T')[0];
 
   const totalCollected = useMemo(
@@ -45,7 +46,14 @@ export default function ReportsScreen() {
   }, [transactions]);
 
   return (
-    <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[Colors.green600]} />
+        }
+      >
       <View style={styles.header}>
         <Text style={styles.title}>Reports</Text>
         <Text style={styles.sub}>Financial overview & analytics</Text>
@@ -54,8 +62,8 @@ export default function ReportsScreen() {
       <View style={styles.content}>
         {/* Summary */}
         <View style={styles.statRow}>
-          <StatCard label="Total Collected" value={fmt(totalCollected)} sub="All time" icon="📈" accent />
-          <StatCard label="Total Paid Out"  value={fmt(totalWithdrawn)} sub="All time" icon="📉" />
+          <StatCard label="Total Collected" value={fmt(totalCollected)} sub="All time" icon="trending-up-outline" accent />
+          <StatCard label="Total Paid Out"  value={fmt(totalWithdrawn)} sub="All time" icon="trending-down-outline" />
         </View>
 
         {/* Top Savers */}
@@ -113,7 +121,8 @@ export default function ReportsScreen() {
 
         <View style={{ height: 20 }} />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

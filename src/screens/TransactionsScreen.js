@@ -6,10 +6,13 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList,
-  TouchableOpacity, Modal, ScrollView, Alert,
+  View, Text, StyleSheet, FlatList, Platform,
+  TouchableOpacity, Modal, ScrollView, Alert, RefreshControl, KeyboardAvoidingView,
 } from 'react-native';
-import { useApp, ACTIONS } from '../store/AppContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useApp, ACTIONS, loadAppData } from '../store/AppContext';
+import { recordTransaction } from '../services/transactionService';
 import { addToOfflineQueue } from '../database/sqlite';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
@@ -31,7 +34,7 @@ const FILTERS = [
 
 export default function TransactionsScreen() {
   const { state, dispatch } = useApp();
-  const { transactions, customers, currentUser, isOnline } = state;
+  const { transactions, customers, currentUser, isOnline, dataLoading } = state;
 
   const [filter,    setFilter]    = useState('all');
   const [showModal, setShowModal] = useState(false);
@@ -68,35 +71,56 @@ export default function TransactionsScreen() {
 
     setLoading(true);
 
-    const transaction = {
-      id:          uid(),
-      customerId:  custId,
-      type:        txType,
-      amount:      amt,
-      date:        todayStr(),
-      time:        timeNow(),
-      collectorId: currentUser.id,
-      notes:       notes,
-      status:      'completed',
-    };
-
     const balanceChange = txType === 'contribution' ? amt : -amt;
 
     if (isOnline) {
-      // Online: update state directly (Firebase call would go here)
-      dispatch({ type: ACTIONS.ADD_TRANSACTION, payload: { transaction, balanceChange } });
+      // Online: write straight to Firestore (atomic balance update +
+      // transaction record — see transactionService.recordTransaction).
+      const result = await recordTransaction({
+        customerId:    custId,
+        type:          txType,
+        amount:        amt,
+        collectorId:   currentUser.id,
+        collectorName: currentUser.name,
+        notes,
+      });
+
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Could not record transaction.');
+        setLoading(false);
+        return;
+      }
+
+      dispatch({
+        type: ACTIONS.ADD_TRANSACTION,
+        payload: {
+          transaction: {
+            id: result.id, customerId: custId, type: txType, amount: amt,
+            date: todayStr(), time: timeNow(),
+            collectorId: currentUser.id, collectorName: currentUser.name,
+            notes, status: 'completed',
+          },
+          balanceChange,
+        },
+      });
     } else {
-      // Offline: save locally, will sync later
+      // Offline: save locally, will sync automatically once back online.
+      const transaction = {
+        id:            uid(),
+        customerId:    custId,
+        type:          txType,
+        amount:        amt,
+        date:          todayStr(),
+        time:          timeNow(),
+        collectorId:   currentUser.id,
+        collectorName: currentUser.name,
+        notes,
+        status:        'pending_sync',
+      };
       await addToOfflineQueue(transaction);
       dispatch({ type: ACTIONS.ADD_TRANSACTION, payload: { transaction, balanceChange } });
       dispatch({ type: ACTIONS.ADD_TO_QUEUE,    payload: transaction });
     }
-
-    // Audit log
-    dispatch({
-      type: ACTIONS.ADD_TO_AUDIT,
-      payload: { action: `record_${txType}`, by: currentUser.id, at: new Date().toISOString(), data: transaction.id },
-    });
 
     // Reset form
     setCustId(''); setAmount(''); setNotes(''); setTxType('contribution');
@@ -105,7 +129,7 @@ export default function TransactionsScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -136,15 +160,25 @@ export default function TransactionsScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<Text style={styles.empty}>No transactions found.</Text>}
+        refreshControl={
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[Colors.green600]} />
+        }
+        ListEmptyComponent={
+          <Text style={styles.empty}>{dataLoading ? 'Loading transactions…' : 'No transactions found.'}</Text>
+        }
         renderItem={({ item: t }) => {
           const cust = getCustomer(t.customerId);
           const isContrib = t.type === 'contribution';
+          const pending = t.status === 'pending_sync';
           return (
             <Card style={styles.txnCard}>
               <View style={styles.txnRow}>
                 <View style={[styles.txnIconBox, { backgroundColor: isContrib ? Colors.green100 : Colors.redLight }]}>
-                  <Text style={styles.txnIcon}>{isContrib ? '💰' : '📤'}</Text>
+                  <Ionicons
+                    name={isContrib ? 'arrow-down' : 'arrow-up'}
+                    size={18}
+                    color={isContrib ? Colors.green600 : Colors.red}
+                  />
                 </View>
                 <View style={styles.txnInfo}>
                   <Text style={styles.txnName}>{cust?.name || 'Unknown'}</Text>
@@ -156,7 +190,10 @@ export default function TransactionsScreen() {
                   <Text style={[styles.txnAmount, { color: isContrib ? Colors.green600 : Colors.red }]}>
                     {isContrib ? '+' : '−'}{fmt(t.amount)}
                   </Text>
-                  <Badge label={isContrib ? 'Saved' : 'Withdrawn'} type={isContrib ? 'success' : 'danger'} />
+                  <Badge
+                    label={pending ? 'Pending Sync' : (isContrib ? 'Saved' : 'Withdrawn')}
+                    type={pending ? 'warning' : (isContrib ? 'success' : 'danger')}
+                  />
                 </View>
               </View>
             </Card>
@@ -166,12 +203,15 @@ export default function TransactionsScreen() {
 
       {/* ── Record Transaction Modal ── */}
       <Modal visible={showModal} animationType="slide" transparent>
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modal}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Record Transaction</Text>
               <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeBtn}>
-                <Text>✕</Text>
+                <Ionicons name="close" size={16} color={Colors.gray500} />
               </TouchableOpacity>
             </View>
 
@@ -189,8 +229,14 @@ export default function TransactionsScreen() {
                       txType === t && (t === 'contribution' ? styles.typeBtnContrib : styles.typeBtnWithdraw),
                     ]}
                   >
+                    <Ionicons
+                      name={t === 'contribution' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
+                      size={16}
+                      color={txType === t ? Colors.white : Colors.gray500}
+                      style={{ marginRight: 6 }}
+                    />
                     <Text style={[styles.typeBtnLabel, txType === t && styles.typeBtnLabelActive]}>
-                      {t === 'contribution' ? '💰 Contribution' : '📤 Withdrawal'}
+                      {t === 'contribution' ? 'Contribution' : 'Withdrawal'}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -231,7 +277,8 @@ export default function TransactionsScreen() {
               {/* Balance warning for withdrawals */}
               {custId && txType === 'withdrawal' && (
                 <View style={styles.warnBox}>
-                  <Text style={styles.warnText}>⚠ Available balance: {fmt(selectedCust?.balance || 0)}</Text>
+                  <Ionicons name="alert-circle-outline" size={16} color={Colors.amber} />
+                  <Text style={styles.warnText}>Available balance: {fmt(selectedCust?.balance || 0)}</Text>
                 </View>
               )}
 
@@ -257,9 +304,9 @@ export default function TransactionsScreen() {
 
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -280,7 +327,6 @@ const styles = StyleSheet.create({
   txnCard:      { padding: 14 },
   txnRow:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
   txnIconBox:   { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  txnIcon:      { fontSize: 20 },
   txnInfo:      { flex: 1 },
   txnName:      { fontFamily: Typography.bold, fontSize: 14, color: Colors.gray900 },
   txnMeta:      { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
@@ -296,7 +342,7 @@ const styles = StyleSheet.create({
   fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: Colors.gray500, letterSpacing: 1, marginBottom: 8 },
 
   typeRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: Colors.gray200 },
-  typeBtn:      { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: Colors.white },
+  typeBtn:      { flex: 1, flexDirection: 'row', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
   typeBtnContrib:  { backgroundColor: Colors.green600 },
   typeBtnWithdraw: { backgroundColor: Colors.red },
   typeBtnLabel:    { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray500 },
@@ -309,7 +355,7 @@ const styles = StyleSheet.create({
   custChipTextActive: { color: Colors.white },
   custChipBal:    { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400, marginTop: 2 },
 
-  warnBox:      { backgroundColor: Colors.amberLight, borderRadius: Radius.sm, padding: 10, marginTop: 10 },
+  warnBox:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.amberLight, borderRadius: Radius.sm, padding: 10, marginTop: 10 },
   warnText:     { fontFamily: Typography.medium, fontSize: 13, color: Colors.amber },
 
   modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 20 },
