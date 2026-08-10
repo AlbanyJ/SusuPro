@@ -4,8 +4,9 @@
 // ============================================================
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Radius, Shadows } from '../constants/theme';
- 
+
 export default function StatCard({ label, value, sub, icon, accent = false }) {
   return (
     <View style={[styles.card, accent && styles.accent]}>
@@ -15,7 +16,9 @@ export default function StatCard({ label, value, sub, icon, accent = false }) {
           <Text style={[styles.value, accent && styles.valueAccent]}>{value}</Text>
           {sub && <Text style={[styles.sub, accent && styles.subAccent]}>{sub}</Text>}
         </View>
-        <Text style={styles.icon}>{icon}</Text>
+        <View style={[styles.iconWrap, accent && styles.iconWrapAccent]}>
+          <Ionicons name={icon} size={18} color={accent ? Colors.white : Colors.green600} />
+        </View>
       </View>
     </View>
   );
@@ -31,5 +34,6 @@ const styles = StyleSheet.create({
   valueAccent: { color: Colors.white },
   sub:         { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400, marginTop: 2 },
   subAccent:   { color: 'rgba(255,255,255,0.6)' },
-  icon:        { fontSize: 22 },
+  iconWrap:      { width: 32, height: 32, borderRadius: Radius.sm, backgroundColor: Colors.green50, alignItems: 'center', justifyContent: 'center' },
+  iconWrapAccent:{ backgroundColor: 'rgba(255,255,255,0.15)' },
 });

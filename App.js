@@ -9,6 +9,15 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
+import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
 import { AppProvider, useApp, ACTIONS, loadAppData } from './src/store/AppContext';
 import { initDatabase }        from './src/database/sqlite';
 import { startNetworkWatcher } from './src/services/syncService';
@@ -19,6 +28,14 @@ import AppNavigator             from './src/navigation/AppNavigator';
 // ── Inner component that has access to global state ───────────
 function AppInner() {
   const { state, dispatch } = useApp();
+
+  const [fontsLoaded] = useFonts({
+    'PlayfairDisplay-Bold': PlayfairDisplay_700Bold,
+    'DMSans-Regular':       DMSans_400Regular,
+    'DMSans-Medium':        DMSans_500Medium,
+    'DMSans-SemiBold':      DMSans_600SemiBold,
+    'DMSans-Bold':          DMSans_700Bold,
+  });
 
   useEffect(() => {
     // 1. Create SQLite tables on first launch
@@ -57,7 +74,7 @@ function AppInner() {
     };
   }, []);
 
-  if (state.authLoading) {
+  if (state.authLoading || !fontsLoaded) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.green700 }}>
         <ActivityIndicator size="large" color={Colors.white} />
@@ -76,9 +93,13 @@ function AppInner() {
 // ── Root export — this is what Expo loads ─────────────────────
 export default function App() {
   return (
-    // AppProvider wraps everything so ALL screens share the same data
-    <AppProvider>
-      <AppInner />
-    </AppProvider>
+    // SafeAreaProvider lets every screen (and the tab bar) know how
+    // much space the notch/status bar/home indicator take up.
+    <SafeAreaProvider>
+      {/* AppProvider wraps everything so ALL screens share the same data */}
+      <AppProvider>
+        <AppInner />
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }

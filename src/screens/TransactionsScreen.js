@@ -9,6 +9,8 @@ import {
   View, Text, StyleSheet, FlatList,
   TouchableOpacity, Modal, ScrollView, Alert, RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp, ACTIONS, loadAppData } from '../store/AppContext';
 import { recordTransaction } from '../services/transactionService';
 import { addToOfflineQueue } from '../database/sqlite';
@@ -127,7 +129,7 @@ export default function TransactionsScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -172,7 +174,11 @@ export default function TransactionsScreen() {
             <Card style={styles.txnCard}>
               <View style={styles.txnRow}>
                 <View style={[styles.txnIconBox, { backgroundColor: isContrib ? Colors.green100 : Colors.redLight }]}>
-                  <Text style={styles.txnIcon}>{isContrib ? '💰' : '📤'}</Text>
+                  <Ionicons
+                    name={isContrib ? 'arrow-down' : 'arrow-up'}
+                    size={18}
+                    color={isContrib ? Colors.green600 : Colors.red}
+                  />
                 </View>
                 <View style={styles.txnInfo}>
                   <Text style={styles.txnName}>{cust?.name || 'Unknown'}</Text>
@@ -202,7 +208,7 @@ export default function TransactionsScreen() {
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Record Transaction</Text>
               <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeBtn}>
-                <Text>✕</Text>
+                <Ionicons name="close" size={16} color={Colors.gray500} />
               </TouchableOpacity>
             </View>
 
@@ -220,8 +226,14 @@ export default function TransactionsScreen() {
                       txType === t && (t === 'contribution' ? styles.typeBtnContrib : styles.typeBtnWithdraw),
                     ]}
                   >
+                    <Ionicons
+                      name={t === 'contribution' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
+                      size={16}
+                      color={txType === t ? Colors.white : Colors.gray500}
+                      style={{ marginRight: 6 }}
+                    />
                     <Text style={[styles.typeBtnLabel, txType === t && styles.typeBtnLabelActive]}>
-                      {t === 'contribution' ? '💰 Contribution' : '📤 Withdrawal'}
+                      {t === 'contribution' ? 'Contribution' : 'Withdrawal'}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -262,7 +274,8 @@ export default function TransactionsScreen() {
               {/* Balance warning for withdrawals */}
               {custId && txType === 'withdrawal' && (
                 <View style={styles.warnBox}>
-                  <Text style={styles.warnText}>⚠ Available balance: {fmt(selectedCust?.balance || 0)}</Text>
+                  <Ionicons name="alert-circle-outline" size={16} color={Colors.amber} />
+                  <Text style={styles.warnText}>Available balance: {fmt(selectedCust?.balance || 0)}</Text>
                 </View>
               )}
 
@@ -290,7 +303,7 @@ export default function TransactionsScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -311,7 +324,6 @@ const styles = StyleSheet.create({
   txnCard:      { padding: 14 },
   txnRow:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
   txnIconBox:   { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  txnIcon:      { fontSize: 20 },
   txnInfo:      { flex: 1 },
   txnName:      { fontFamily: Typography.bold, fontSize: 14, color: Colors.gray900 },
   txnMeta:      { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
@@ -327,7 +339,7 @@ const styles = StyleSheet.create({
   fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: Colors.gray500, letterSpacing: 1, marginBottom: 8 },
 
   typeRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: Colors.gray200 },
-  typeBtn:      { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: Colors.white },
+  typeBtn:      { flex: 1, flexDirection: 'row', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
   typeBtnContrib:  { backgroundColor: Colors.green600 },
   typeBtnWithdraw: { backgroundColor: Colors.red },
   typeBtnLabel:    { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray500 },
@@ -340,7 +352,7 @@ const styles = StyleSheet.create({
   custChipTextActive: { color: Colors.white },
   custChipBal:    { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400, marginTop: 2 },
 
-  warnBox:      { backgroundColor: Colors.amberLight, borderRadius: Radius.sm, padding: 10, marginTop: 10 },
+  warnBox:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.amberLight, borderRadius: Radius.sm, padding: 10, marginTop: 10 },
   warnText:     { fontFamily: Typography.medium, fontSize: 13, color: Colors.amber },
 
   modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 20 },

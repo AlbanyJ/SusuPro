@@ -6,6 +6,8 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp, loadAppData } from '../store/AppContext';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
@@ -26,6 +28,7 @@ function todayStr() {
 export default function DashboardScreen() {
   const { state, dispatch } = useApp();
   const { currentUser, customers, transactions, isOnline, dataLoading } = state;
+  const insets = useSafeAreaInsets();
 
   // ── Computed stats ──────────────────────────────────────────
   const today = todayStr();
@@ -75,11 +78,11 @@ export default function DashboardScreen() {
     >
 
       {/* ── Hero Header ─────────────────────────────────────── */}
-      <View style={styles.hero}>
+      <View style={[styles.hero, { paddingTop: insets.top + 16 }]}>
         <View style={styles.heroTop}>
           <View>
             <Text style={styles.greetSub}>Good morning,</Text>
-            <Text style={styles.greetName}>{currentUser?.name?.split(' ')[0]} 👋</Text>
+            <Text style={styles.greetName}>{currentUser?.name?.split(' ')[0]}</Text>
           </View>
           <View style={[styles.onlinePill, !isOnline && styles.offlinePill]}>
             <View style={[styles.onlineDot, !isOnline && styles.offlineDot]} />
@@ -104,26 +107,26 @@ export default function DashboardScreen() {
             label="Today's Collections"
             value={fmt(todayCollections)}
             sub={`${todayTxns.filter(t => t.type === 'contribution').length} transactions`}
-            icon="💰"
+            icon="cash-outline"
             accent
           />
           <StatCard
             label="Withdrawals"
             value={fmt(todayWithdrawals)}
             sub="Today"
-            icon="📤"
+            icon="arrow-up-circle-outline"
           />
         </View>
 
         <View style={styles.statRow}>
-          <StatCard label="Active Members" value={activeCount} sub={`${customers.length} total`} icon="👥" />
-          <StatCard label="Net Today" value={fmt(todayCollections - todayWithdrawals)} sub="In minus out" icon="📊" />
+          <StatCard label="Active Members" value={activeCount} sub={`${customers.length} total`} icon="people-outline" />
+          <StatCard label="Net Today" value={fmt(todayCollections - todayWithdrawals)} sub="In minus out" icon="stats-chart-outline" />
         </View>
 
         {/* ── Offline warning ─── */}
         {!isOnline && (
           <View style={styles.offlineBanner}>
-            <Text style={styles.offlineIcon}>📶</Text>
+            <Ionicons name="cloud-offline-outline" size={20} color={Colors.amber} />
             <View>
               <Text style={styles.offlineTitle}>Offline Mode Active</Text>
               <Text style={styles.offlineBody}>Transactions will sync when connected.</Text>
@@ -204,7 +207,6 @@ const styles = StyleSheet.create({
 
   // Offline banner
   offlineBanner: { backgroundColor: Colors.amberLight, borderRadius: Radius.sm, padding: 14, flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: Colors.amber },
-  offlineIcon:   { fontSize: 22 },
   offlineTitle:  { fontFamily: Typography.bold, fontSize: 13, color: Colors.amber },
   offlineBody:   { fontFamily: Typography.body, fontSize: 12, color: Colors.gray500 },
 
