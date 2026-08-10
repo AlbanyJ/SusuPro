@@ -10,11 +10,12 @@ import {
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { loginUser } from '../services/authService';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import { Colors, Typography, Radius, Shadows, Spacing } from '../constants/theme';
+import { Colors, Typography, Radius, Shadows, Spacing, Gradients } from '../constants/theme';
 
 export default function LoginScreen() {
   const [email, setEmail]       = useState('');
@@ -43,9 +44,10 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.bg} edges={['top', 'bottom']}>
+    <LinearGradient colors={Gradients.hero} style={styles.bg}>
+    <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
     <KeyboardAvoidingView
-      style={styles.bg}
+      style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -118,11 +120,13 @@ export default function LoginScreen() {
       </ScrollView>
     </KeyboardAvoidingView>
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  bg:          { flex: 1, backgroundColor: Colors.green700 },
+  bg:          { flex: 1 },
+  flex:        { flex: 1 },
   scroll:      { flexGrow: 1, justifyContent: 'center', padding: Spacing.xl },
   wrap:        { width: '100%', maxWidth: 400, alignSelf: 'center' },
 

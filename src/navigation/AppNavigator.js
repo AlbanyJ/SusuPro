@@ -48,19 +48,20 @@ function MainTabs() {
           backgroundColor: Colors.white,
           borderTopColor: Colors.gray100,
           borderTopWidth: 1,
-          height: 70,
-          paddingBottom: 10,
+          height: 76,
+          paddingTop: 10,
+          paddingBottom: 14,
         },
         tabBarIcon: ({ focused }) => (
-          <View style={{ alignItems: 'center' }}>
+          <View style={[
+            { width: 40, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+            focused && { backgroundColor: Colors.green50 },
+          ]}>
             <Ionicons
               name={focused ? TAB_ICONS[route.name].focused : TAB_ICONS[route.name].unfocused}
-              size={22}
+              size={20}
               color={focused ? Colors.green600 : Colors.gray400}
             />
-            {focused && (
-              <View style={{ width: 20, height: 3, borderRadius: 99, backgroundColor: Colors.green600, marginTop: 3 }} />
-            )}
           </View>
         ),
         tabBarLabel: ({ focused }) => (
