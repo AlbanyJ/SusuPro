@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { View, Text } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -94,9 +94,18 @@ export default function AppNavigator() {
   const { colors, isDark } = useTheme();
   const isLoggedIn = !!state.currentUser;
 
+  // Base on react-navigation's own Default/DarkTheme rather than a bare
+  // object — v7 themes require a `fonts` key (used by native-stack
+  // headers) and building one from scratch without it throws
+  // "Cannot read property 'regular' of undefined" deep in navigation
+  // internals. Spreading the base keeps `fonts` intact while we only
+  // override the colors that matter to us.
+  const base = isDark ? DarkTheme : DefaultTheme;
   const navTheme = {
+    ...base,
     dark: isDark,
     colors: {
+      ...base.colors,
       primary: colors.green500,
       background: colors.offWhite,
       card: colors.surface,
