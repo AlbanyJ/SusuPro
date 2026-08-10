@@ -128,7 +128,7 @@ export default function ReportsScreen() {
 
 const styles = StyleSheet.create({
   screen:       { flex: 1, backgroundColor: Colors.offWhite },
-  header:       { backgroundColor: Colors.white, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
+  header:       { backgroundColor: Colors.surface, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
   title:        { fontFamily: Typography.display, fontSize: 22, color: Colors.gray900 },
   sub:          { fontFamily: Typography.body, fontSize: 13, color: Colors.gray400 },
   content:      { padding: Spacing.lg },

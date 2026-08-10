@@ -312,7 +312,7 @@ export default function TransactionsScreen() {
 
 const styles = StyleSheet.create({
   screen:       { flex: 1, backgroundColor: Colors.offWhite },
-  header:       { backgroundColor: Colors.white, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
+  header:       { backgroundColor: Colors.surface, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
   headerRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   title:        { fontFamily: Typography.display, fontSize: 22, color: Colors.gray900 },
   filterRow:    { flexDirection: 'row', gap: 8 },
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   txnAmount:    { fontFamily: Typography.bold, fontSize: 15 },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(17,24,39,0.5)', justifyContent: 'flex-end' },
-  modal:        { backgroundColor: Colors.white, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
+  modal:        { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
   modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
   modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: Colors.gray900 },
   closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.gray100, alignItems: 'center', justifyContent: 'center' },
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: Colors.gray500, letterSpacing: 1, marginBottom: 8 },
 
   typeRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: Colors.gray200 },
-  typeBtn:      { flex: 1, flexDirection: 'row', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
+  typeBtn:      { flex: 1, flexDirection: 'row', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface },
   typeBtnContrib:  { backgroundColor: Colors.green600 },
   typeBtnWithdraw: { backgroundColor: Colors.red },
   typeBtnLabel:    { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray500 },

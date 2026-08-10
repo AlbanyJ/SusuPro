@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   light: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.gray50,
     ...Shadows.sm,

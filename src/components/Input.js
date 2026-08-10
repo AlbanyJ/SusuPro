@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     fontSize: 15, color: Colors.gray900, backgroundColor: Colors.gray50,
   },
   inputFocused:   {
-    borderColor: Colors.green500, backgroundColor: Colors.white,
+    borderColor: Colors.green500, backgroundColor: Colors.surfaceAlt,
     shadowColor: Colors.green500, shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.15, shadowRadius: 6, elevation: 2,
   },

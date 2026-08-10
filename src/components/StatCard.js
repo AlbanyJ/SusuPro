@@ -42,7 +42,7 @@ export default function StatCard({ label, value, sub, icon, accent = false }) {
 
 const styles = StyleSheet.create({
   card:        { flex: 1, borderRadius: Radius.md, padding: 16 },
-  lightCard:   { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.gray50, ...Shadows.sm },
+  lightCard:   { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.gray50, ...Shadows.sm },
   accentCard:  { ...Shadows.md },
   row:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   label:       { fontFamily: Typography.bold, fontSize: 10, color: Colors.gray400, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },

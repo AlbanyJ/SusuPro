@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   brandSub:    { fontFamily: Typography.body, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: 1.2 },
   tagline:     { fontFamily: Typography.body, fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginBottom: 32 },
 
-  card:        { backgroundColor: Colors.white, borderRadius: Radius.lg, padding: 28, ...Shadows.lg },
+  card:        { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: 28, ...Shadows.lg },
   heading:     { fontFamily: Typography.display, fontSize: 22, color: Colors.gray900, marginBottom: 4 },
   subHeading:  { fontFamily: Typography.body, fontSize: 14, color: Colors.gray400, marginBottom: 24 },
   form:        { gap: 14 },

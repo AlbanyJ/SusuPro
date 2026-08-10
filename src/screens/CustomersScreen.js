@@ -259,7 +259,7 @@ export default function CustomersScreen() {
 
 const styles = StyleSheet.create({
   screen:       { flex: 1, backgroundColor: Colors.offWhite },
-  header:       { backgroundColor: Colors.white, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
+  header:       { backgroundColor: Colors.surface, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
   headerRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   title:        { fontFamily: Typography.display, fontSize: 22, color: Colors.gray900 },
   searchWrap:   { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.gray50, borderRadius: Radius.sm, paddingHorizontal: 12, borderWidth: 1.5, borderColor: Colors.gray200 },
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   balanceLabel: { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400 },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(17,24,39,0.5)', justifyContent: 'flex-end' },
-  modal:        { backgroundColor: Colors.white, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
+  modal:        { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
   modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
   modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: Colors.gray900 },
   closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.gray100, alignItems: 'center', justifyContent: 'center' },

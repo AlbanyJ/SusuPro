@@ -2,40 +2,54 @@
 // FILE 1: src/constants/theme.js
 // WHAT:   Every color, font, spacing, and shadow in the app.
 //         Change values here → whole app updates instantly.
+//
+// Dark-first "bold & premium" palette (Cash App / Revolut style):
+// deep near-black surfaces with a green tint, bright green/status
+// accents for text and highlights. `white`/`offWhite` etc. keep
+// their original semantic NAMES (screen bg, text, dividers) so
+// every screen that already references them just inherits the new
+// look — only `Colors.white` used specifically as a background
+// (cards/headers/modals) was swapped to the new `surface` token,
+// since `white` itself still means literal white text-on-dark.
 // ============================================================
 
 export const Colors = {
   // ── Greens (primary palette) ──
-  green50:  '#f0faf4',
-  green100: '#d6f2e0',
-  green200: '#a8dfc0',
-  green300: '#6ec99a',
-  green400: '#3daf73',
-  green500: '#259158',
-  green600: '#1a7344',
-  green700: '#145534',
+  green50:  '#122a1c',   // darkest tint — subtle chip/icon-wrap bg
+  green100: '#1a3d28',   // dark tint — badge/panel bg
+  green200: '#2a5c3c',
+  green300: '#7dd6a3',   // bright accent — icon/text on dark cards
+  green400: '#3daf73',   // gradient mid tone
+  green500: '#259158',   // brand core
+  green600: '#4ade80',   // bright — primary readable text/icon accent
+  green700: '#8beab3',   // brightest — sparing emphasis text
 
-  // ── Ink (deep premium dark surface — hero cards, primary CTAs) ──
+  // ── Ink (deep premium dark surface — hero/gradient cards) ──
   ink:      '#0c1912',
   ink700:   '#132b1f',
   ink600:   '#1c3d2b',
 
-  // ── Neutrals ──
-  white:    '#ffffff',
-  offWhite: '#f7f9f8',
-  gray50:   '#f3f4f6',
-  gray100:  '#e8eae9',
-  gray200:  '#d1d5db',
-  gray400:  '#9ca3af',
-  gray500:  '#6b7280',
-  gray700:  '#374151',
-  gray900:  '#111827',
+  // ── Neutrals (dark UI: "white" stays literal white for text,
+  //     everything else is a dark surface or light text tone) ──
+  white:      '#ffffff',
+  offWhite:   '#0a130e',   // screen background (near-black, green cast)
+  surface:    '#12201a',   // card / header / modal background
+  surfaceAlt: '#1a2c22',   // nested surface — focused input, chips
+
+  gray50:   '#132119',   // subtle chip / icon-wrap bg
+  gray100:  '#213329',   // hairline border / divider
+  gray200:  '#2c4235',   // stronger border (inputs, search box)
+  gray400:  '#7c9186',   // tertiary text, placeholders
+  gray500:  '#a3b8ac',   // secondary body text
+  gray600:  '#c2d2c7',   // secondary text (was undefined — now fixed)
+  gray700:  '#dbe6e0',   // secondary bold text / labels
+  gray900:  '#f6faf8',   // primary text (near-white)
 
   // ── Status colors ──
-  red:         '#dc2626',
-  redLight:    '#fee2e2',
-  amber:       '#d97706',
-  amberLight:  '#fef3c7',
+  red:         '#f87171',
+  redLight:    '#3a1414',
+  amber:       '#fbbf24',
+  amberLight:  '#3a2a0c',
 };
 
 // Used with <LinearGradient colors={Gradients.x}>
@@ -83,23 +97,23 @@ export const Radius = {
 
 export const Shadows = {
   sm: {
-    shadowColor: '#0c1912',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 3,
   },
   md: {
-    shadowColor: '#0c1912',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.14,
+    shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 8,
   },
   lg: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.45,
     shadowRadius: 32,
     elevation: 16,
   },
@@ -107,7 +121,7 @@ export const Shadows = {
   glow: {
     shadowColor: '#1a7344',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.45,
     shadowRadius: 20,
     elevation: 10,
   },

@@ -45,7 +45,7 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.surface,
           borderTopColor: Colors.gray100,
           borderTopWidth: 1,
           height: 76,
