@@ -9,6 +9,8 @@ import {
   View, Text, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { loginUser } from '../services/authService';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -41,6 +43,7 @@ export default function LoginScreen() {
   }
 
   return (
+    <SafeAreaView style={styles.bg} edges={['top', 'bottom']}>
     <KeyboardAvoidingView
       style={styles.bg}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -51,7 +54,7 @@ export default function LoginScreen() {
           {/* ── Logo ── */}
           <View style={styles.logoRow}>
             <View style={styles.logoIcon}>
-              <Text style={styles.logoEmoji}>🌿</Text>
+              <Ionicons name="wallet-outline" size={26} color={Colors.white} />
             </View>
             <View>
               <Text style={styles.brandName}>SusuPro</Text>
@@ -85,7 +88,8 @@ export default function LoginScreen() {
 
               {error ? (
                 <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>⚠ {error}</Text>
+                  <Ionicons name="alert-circle-outline" size={16} color={Colors.red} />
+                  <Text style={styles.errorText}>{error}</Text>
                 </View>
               ) : null}
 
@@ -106,10 +110,14 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          <Text style={styles.foot}>🔒 Secured by Firebase Authentication</Text>
+          <View style={styles.footRow}>
+            <Ionicons name="lock-closed-outline" size={12} color="rgba(255,255,255,0.35)" />
+            <Text style={styles.foot}>Secured by Firebase Authentication</Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -120,7 +128,6 @@ const styles = StyleSheet.create({
 
   logoRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 8 },
   logoIcon:    { width: 52, height: 52, borderRadius: 16, backgroundColor: Colors.green400, alignItems: 'center', justifyContent: 'center', ...Shadows.md },
-  logoEmoji:   { fontSize: 26 },
   brandName:   { fontFamily: Typography.display, fontSize: 28, color: Colors.white },
   brandSub:    { fontFamily: Typography.body, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: 1.2 },
   tagline:     { fontFamily: Typography.body, fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginBottom: 32 },
@@ -131,12 +138,13 @@ const styles = StyleSheet.create({
   form:        { gap: 14 },
   loginBtn:    { marginTop: 8 },
 
-  errorBox:    { backgroundColor: Colors.redLight, borderRadius: Radius.sm, padding: 12 },
-  errorText:   { fontFamily: Typography.medium, fontSize: 13, color: Colors.red },
+  errorBox:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.redLight, borderRadius: Radius.sm, padding: 12 },
+  errorText:   { flex: 1, fontFamily: Typography.medium, fontSize: 13, color: Colors.red },
 
   demoBox:     { marginTop: 20, backgroundColor: Colors.green50, borderRadius: Radius.sm, padding: 14, borderWidth: 1, borderColor: Colors.green100 },
   demoLabel:   { fontFamily: Typography.bold, fontSize: 10, color: Colors.green600, letterSpacing: 1, marginBottom: 8 },
   demoItem:    { fontFamily: Typography.body, fontSize: 12, color: Colors.gray500, lineHeight: 22 },
 
-  foot:        { textAlign: 'center', marginTop: 24, fontFamily: Typography.body, fontSize: 12, color: 'rgba(255,255,255,0.3)' },
+  footRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 24 },
+  foot:        { fontFamily: Typography.body, fontSize: 12, color: 'rgba(255,255,255,0.3)' },
 });

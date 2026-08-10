@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp, ACTIONS } from '../store/AppContext';
 import { logoutUser } from '../services/authService';
 import { fetchUsers, createTeamMember } from '../services/userService';
@@ -87,7 +89,8 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+    <ScrollView showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>Account</Text>
       </View>
@@ -114,7 +117,10 @@ export default function SettingsScreen() {
         {/* ── Offline Queue status ── */}
         {offlineQueue.length > 0 && (
           <Card style={styles.queueCard}>
-            <Text style={styles.queueTitle}>📶 Pending Sync</Text>
+            <View style={styles.cardHeadRow}>
+              <Ionicons name="cloud-upload-outline" size={16} color={Colors.amber} />
+              <Text style={styles.queueTitle}>Pending Sync</Text>
+            </View>
             <Text style={styles.queueBody}>
               {offlineQueue.length} transaction{offlineQueue.length !== 1 ? 's' : ''} waiting to sync.
               {isOnline ? ' Syncing now…' : ' Will sync when online.'}
@@ -126,7 +132,10 @@ export default function SettingsScreen() {
         {isAdmin && (
           <Card style={styles.secCard}>
             <View style={styles.teamHead}>
-              <Text style={styles.secTitle}>👥 Team Members</Text>
+              <View style={styles.cardHeadRow}>
+                <Ionicons name="people-outline" size={16} color={Colors.gray900} />
+                <Text style={styles.secTitle}>Team Members</Text>
+              </View>
               <Button label="+ Add" onPress={() => setShowAdd(true)} size="sm" />
             </View>
             {teamLoading && team.length === 0 ? (
@@ -150,13 +159,16 @@ export default function SettingsScreen() {
 
         {/* ── Security Info ── */}
         <Card style={styles.secCard}>
-          <Text style={styles.secTitle}>🔐 Security</Text>
+          <View style={styles.cardHeadRow}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={Colors.gray900} />
+            <Text style={styles.secTitle}>Security</Text>
+          </View>
           {SECURITY_ITEMS.map(item => (
             <View key={item.label} style={styles.secRow}>
               <Text style={styles.secLabel}>{item.label}</Text>
               <View style={styles.secRight}>
                 <Text style={styles.secValue}>{item.value}</Text>
-                <Text style={styles.secCheck}>✓</Text>
+                <Ionicons name="checkmark" size={14} color={Colors.green500} />
               </View>
             </View>
           ))}
@@ -164,7 +176,10 @@ export default function SettingsScreen() {
 
         {/* ── Architecture Note ── */}
         <Card style={styles.archCard}>
-          <Text style={styles.archTitle}>🏗 Tech Stack</Text>
+          <View style={styles.cardHeadRow}>
+            <Ionicons name="construct-outline" size={16} color={Colors.green700} />
+            <Text style={styles.archTitle}>Tech Stack</Text>
+          </View>
           {[
             ['Frontend',  'React Native (Expo)'],
             ['Backend',   'Firebase Auth + Firestore'],
@@ -195,7 +210,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Add Team Member</Text>
               <TouchableOpacity onPress={() => setShowAdd(false)} style={styles.closeBtn}>
-                <Text style={styles.closeIcon}>✕</Text>
+                <Ionicons name="close" size={16} color={Colors.gray500} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody}>
@@ -227,6 +242,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -245,13 +261,14 @@ const styles = StyleSheet.create({
   queueTitle:  { fontFamily: Typography.bold, fontSize: 14, color: Colors.amber, marginBottom: 4 },
   queueBody:   { fontFamily: Typography.body, fontSize: 13, color: Colors.gray600 },
 
+  cardHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+
   secCard:     { },
   secTitle:    { fontFamily: Typography.bold, fontSize: 14, color: Colors.gray900, marginBottom: 12 },
   secRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.gray50 },
   secLabel:    { fontFamily: Typography.body, fontSize: 13, color: Colors.gray700 },
   secRight:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
   secValue:    { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
-  secCheck:    { color: Colors.green500, fontFamily: Typography.bold },
 
   teamHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   teamEmpty:   { fontFamily: Typography.body, fontSize: 13, color: Colors.gray400, paddingVertical: 8 },
@@ -271,7 +288,6 @@ const styles = StyleSheet.create({
   modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
   modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: Colors.gray900 },
   closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.gray100, alignItems: 'center', justifyContent: 'center' },
-  closeIcon:    { fontSize: 16, color: Colors.gray500 },
   modalBody:    { padding: 20, gap: 14 },
   fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: Colors.gray500, letterSpacing: 1 },
 

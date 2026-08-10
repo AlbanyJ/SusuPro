@@ -9,6 +9,8 @@ import {
   View, Text, StyleSheet, FlatList,
   TextInput, TouchableOpacity, Modal, ScrollView, Alert, RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp, ACTIONS, loadAppData } from '../store/AppContext';
 import { addCustomer, updateCustomer } from '../services/customerService';
 import Avatar from '../components/Avatar';
@@ -95,7 +97,7 @@ export default function CustomersScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -107,7 +109,7 @@ export default function CustomersScreen() {
         </View>
         {/* Search */}
         <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search" size={16} color={Colors.gray400} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or phone…"
@@ -163,7 +165,7 @@ export default function CustomersScreen() {
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Customer Details</Text>
               <TouchableOpacity onPress={() => setSelected(null)} style={styles.closeBtn}>
-                <Text style={styles.closeIcon}>✕</Text>
+                <Ionicons name="close" size={16} color={Colors.gray500} />
               </TouchableOpacity>
             </View>
 
@@ -233,7 +235,7 @@ export default function CustomersScreen() {
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Add New Customer</Text>
               <TouchableOpacity onPress={() => setShowAdd(false)} style={styles.closeBtn}>
-                <Text style={styles.closeIcon}>✕</Text>
+                <Ionicons name="close" size={16} color={Colors.gray500} />
               </TouchableOpacity>
             </View>
             <View style={styles.modalBody}>
@@ -248,7 +250,7 @@ export default function CustomersScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
