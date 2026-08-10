@@ -25,7 +25,7 @@ const SECURITY_ITEMS = [
   { label: 'Transaction Integrity', value: 'Atomic balance updates' },
 ];
 
-export default function SettingsScreen({ navigation }) {
+export default function SettingsScreen() {
   const { state, dispatch } = useApp();
   const { currentUser, offlineQueue, isOnline } = state;
   const isAdmin = currentUser?.role === 'admin';
@@ -77,7 +77,10 @@ export default function SettingsScreen({ navigation }) {
         onPress: async () => {
           await logoutUser();
           dispatch({ type: ACTIONS.LOGOUT });
-          navigation.replace('Login');
+          // AppNavigator swaps to the Login screen automatically once
+          // currentUser clears — no manual navigation needed (and this
+          // screen lives inside the nested tab navigator, so it has no
+          // direct route to the root-level "Login" screen anyway).
         },
       },
     ]);
