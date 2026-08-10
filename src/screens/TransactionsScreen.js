@@ -19,7 +19,8 @@ import Badge from '../components/Badge';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Input from '../components/Input';
-import { Colors, Typography, Spacing, Radius, Shadows } from '../constants/theme';
+import { Typography, Spacing, Radius } from '../constants/theme';
+import { useTheme } from '../store/ThemeContext';
 
 function fmt(n) { return `GHS ${Number(n).toLocaleString('en-GH')}`; }
 function uid()  { return Math.random().toString(36).substr(2, 9); }
@@ -35,6 +36,8 @@ const FILTERS = [
 export default function TransactionsScreen() {
   const { state, dispatch } = useApp();
   const { transactions, customers, currentUser, isOnline, dataLoading } = state;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [filter,    setFilter]    = useState('all');
   const [showModal, setShowModal] = useState(false);
@@ -161,7 +164,7 @@ export default function TransactionsScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[Colors.green600]} />
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[colors.green600]} />
         }
         ListEmptyComponent={
           <Text style={styles.empty}>{dataLoading ? 'Loading transactions…' : 'No transactions found.'}</Text>
@@ -173,11 +176,11 @@ export default function TransactionsScreen() {
           return (
             <Card style={styles.txnCard}>
               <View style={styles.txnRow}>
-                <View style={[styles.txnIconBox, { backgroundColor: isContrib ? Colors.green100 : Colors.redLight }]}>
+                <View style={[styles.txnIconBox, { backgroundColor: isContrib ? colors.green100 : colors.redLight }]}>
                   <Ionicons
                     name={isContrib ? 'arrow-down' : 'arrow-up'}
                     size={18}
-                    color={isContrib ? Colors.green600 : Colors.red}
+                    color={isContrib ? colors.green600 : colors.red}
                   />
                 </View>
                 <View style={styles.txnInfo}>
@@ -187,7 +190,7 @@ export default function TransactionsScreen() {
                   </Text>
                 </View>
                 <View style={styles.txnRight}>
-                  <Text style={[styles.txnAmount, { color: isContrib ? Colors.green600 : Colors.red }]}>
+                  <Text style={[styles.txnAmount, { color: isContrib ? colors.green600 : colors.red }]}>
                     {isContrib ? '+' : '−'}{fmt(t.amount)}
                   </Text>
                   <Badge
@@ -211,7 +214,7 @@ export default function TransactionsScreen() {
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Record Transaction</Text>
               <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeBtn}>
-                <Ionicons name="close" size={16} color={Colors.gray500} />
+                <Ionicons name="close" size={16} color={colors.gray500} />
               </TouchableOpacity>
             </View>
 
@@ -232,7 +235,7 @@ export default function TransactionsScreen() {
                     <Ionicons
                       name={t === 'contribution' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
                       size={16}
-                      color={txType === t ? Colors.white : Colors.gray500}
+                      color={txType === t ? colors.white : colors.gray500}
                       style={{ marginRight: 6 }}
                     />
                     <Text style={[styles.typeBtnLabel, txType === t && styles.typeBtnLabelActive]}>
@@ -243,7 +246,7 @@ export default function TransactionsScreen() {
               </View>
 
               {/* Customer selector */}
-              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>CUSTOMER <Text style={{ color: Colors.red }}>*</Text></Text>
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>CUSTOMER <Text style={{ color: colors.red }}>*</Text></Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.custScroll}>
                 {activeCustomers.map(c => (
                   <TouchableOpacity
@@ -277,7 +280,7 @@ export default function TransactionsScreen() {
               {/* Balance warning for withdrawals */}
               {custId && txType === 'withdrawal' && (
                 <View style={styles.warnBox}>
-                  <Ionicons name="alert-circle-outline" size={16} color={Colors.amber} />
+                  <Ionicons name="alert-circle-outline" size={16} color={colors.amber} />
                   <Text style={styles.warnText}>Available balance: {fmt(selectedCust?.balance || 0)}</Text>
                 </View>
               )}
@@ -310,53 +313,55 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:       { flex: 1, backgroundColor: Colors.offWhite },
-  header:       { backgroundColor: Colors.surface, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
+function makeStyles(colors) {
+  return StyleSheet.create({
+  screen:       { flex: 1, backgroundColor: colors.offWhite },
+  header:       { backgroundColor: colors.surface, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
   headerRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  title:        { fontFamily: Typography.display, fontSize: 22, color: Colors.gray900 },
+  title:        { fontFamily: Typography.display, fontSize: 22, color: colors.gray900 },
   filterRow:    { flexDirection: 'row', gap: 8 },
-  filterBtn:    { borderRadius: 99, paddingHorizontal: 14, paddingVertical: 6, backgroundColor: Colors.gray100 },
-  filterBtnActive: { backgroundColor: Colors.green600 },
-  filterLabel:  { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray500 },
-  filterLabelActive: { color: Colors.white },
+  filterBtn:    { borderRadius: 99, paddingHorizontal: 14, paddingVertical: 6, backgroundColor: colors.gray100 },
+  filterBtnActive: { backgroundColor: colors.green600 },
+  filterLabel:  { fontFamily: Typography.bold, fontSize: 13, color: colors.gray500 },
+  filterLabelActive: { color: colors.white },
 
   list:         { padding: Spacing.lg, gap: 8, paddingBottom: 80 },
-  empty:        { textAlign: 'center', fontFamily: Typography.body, fontSize: 14, color: Colors.gray400, padding: 40 },
+  empty:        { textAlign: 'center', fontFamily: Typography.body, fontSize: 14, color: colors.gray400, padding: 40 },
 
   txnCard:      { padding: 14 },
   txnRow:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
   txnIconBox:   { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   txnInfo:      { flex: 1 },
-  txnName:      { fontFamily: Typography.bold, fontSize: 14, color: Colors.gray900 },
-  txnMeta:      { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
+  txnName:      { fontFamily: Typography.bold, fontSize: 14, color: colors.gray900 },
+  txnMeta:      { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },
   txnRight:     { alignItems: 'flex-end', gap: 4 },
   txnAmount:    { fontFamily: Typography.bold, fontSize: 15 },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(17,24,39,0.5)', justifyContent: 'flex-end' },
-  modal:        { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
-  modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: Colors.gray900 },
-  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.gray100, alignItems: 'center', justifyContent: 'center' },
+  modal:        { backgroundColor: colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
+  modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+  modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: colors.gray900 },
+  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.gray100, alignItems: 'center', justifyContent: 'center' },
   modalBody:    { padding: 20 },
-  fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: Colors.gray500, letterSpacing: 1, marginBottom: 8 },
+  fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: colors.gray500, letterSpacing: 1, marginBottom: 8 },
 
-  typeRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: Colors.gray200 },
-  typeBtn:      { flex: 1, flexDirection: 'row', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface },
-  typeBtnContrib:  { backgroundColor: Colors.green600 },
-  typeBtnWithdraw: { backgroundColor: Colors.red },
-  typeBtnLabel:    { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray500 },
-  typeBtnLabelActive: { color: Colors.white },
+  typeRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: colors.gray200 },
+  typeBtn:      { flex: 1, flexDirection: 'row', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  typeBtnContrib:  { backgroundColor: colors.green600 },
+  typeBtnWithdraw: { backgroundColor: colors.red },
+  typeBtnLabel:    { fontFamily: Typography.bold, fontSize: 13, color: colors.gray500 },
+  typeBtnLabelActive: { color: colors.white },
 
   custScroll:   { marginBottom: 4 },
-  custChip:     { borderRadius: Radius.sm, padding: 10, backgroundColor: Colors.gray100, marginRight: 8, minWidth: 90, alignItems: 'center' },
-  custChipActive: { backgroundColor: Colors.green500 },
-  custChipText:   { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray700 },
-  custChipTextActive: { color: Colors.white },
-  custChipBal:    { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400, marginTop: 2 },
+  custChip:     { borderRadius: Radius.sm, padding: 10, backgroundColor: colors.gray100, marginRight: 8, minWidth: 90, alignItems: 'center' },
+  custChipActive: { backgroundColor: colors.green500 },
+  custChipText:   { fontFamily: Typography.bold, fontSize: 13, color: colors.gray700 },
+  custChipTextActive: { color: colors.white },
+  custChipBal:    { fontFamily: Typography.body, fontSize: 11, color: colors.gray400, marginTop: 2 },
 
-  warnBox:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.amberLight, borderRadius: Radius.sm, padding: 10, marginTop: 10 },
-  warnText:     { fontFamily: Typography.medium, fontSize: 13, color: Colors.amber },
+  warnBox:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.amberLight, borderRadius: Radius.sm, padding: 10, marginTop: 10 },
+  warnText:     { fontFamily: Typography.medium, fontSize: 13, color: colors.amber },
 
   modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 20 },
 });
+}

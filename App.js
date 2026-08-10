@@ -19,15 +19,16 @@ import {
   DMSans_800ExtraBold,
 } from '@expo-google-fonts/dm-sans';
 import { AppProvider, useApp, ACTIONS, loadAppData } from './src/store/AppContext';
+import { ThemeProvider, useTheme } from './src/store/ThemeContext';
 import { initDatabase }        from './src/database/sqlite';
 import { startNetworkWatcher } from './src/services/syncService';
 import { onAuthChange, getUserProfile } from './src/services/authService';
-import { Colors } from './src/constants/theme';
 import AppNavigator             from './src/navigation/AppNavigator';
 
 // ── Inner component that has access to global state ───────────
 function AppInner() {
   const { state, dispatch } = useApp();
+  const { colors, isDark } = useTheme();
 
   const [fontsLoaded] = useFonts({
     'DMSans-Regular':       DMSans_400Regular,
@@ -76,15 +77,15 @@ function AppInner() {
 
   if (state.authLoading || !fontsLoaded) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.green700 }}>
-        <ActivityIndicator size="large" color={Colors.white} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.offWhite }}>
+        <ActivityIndicator size="large" color={colors.green500} />
       </View>
     );
   }
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <AppNavigator />
     </>
   );
@@ -96,10 +97,12 @@ export default function App() {
     // SafeAreaProvider lets every screen (and the tab bar) know how
     // much space the notch/status bar/home indicator take up.
     <SafeAreaProvider>
-      {/* AppProvider wraps everything so ALL screens share the same data */}
-      <AppProvider>
-        <AppInner />
-      </AppProvider>
+      <ThemeProvider>
+        {/* AppProvider wraps everything so ALL screens share the same data */}
+        <AppProvider>
+          <AppInner />
+        </AppProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

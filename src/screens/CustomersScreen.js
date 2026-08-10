@@ -18,13 +18,16 @@ import Badge from '../components/Badge';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Input from '../components/Input';
-import { Colors, Typography, Spacing, Radius, Shadows } from '../constants/theme';
+import { Typography, Spacing, Radius } from '../constants/theme';
+import { useTheme } from '../store/ThemeContext';
 
 function fmt(n) { return `GHS ${Number(n).toLocaleString('en-GH')}`; }
 
 export default function CustomersScreen() {
   const { state, dispatch } = useApp();
   const { customers, transactions, currentUser, dataLoading } = state;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isAdmin = currentUser?.role === 'admin';
 
   const [search,    setSearch]    = useState('');
@@ -109,11 +112,11 @@ export default function CustomersScreen() {
         </View>
         {/* Search */}
         <View style={styles.searchWrap}>
-          <Ionicons name="search" size={16} color={Colors.gray400} style={styles.searchIcon} />
+          <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or phone…"
-            placeholderTextColor={Colors.gray400}
+            placeholderTextColor={colors.gray400}
             value={search}
             onChangeText={setSearch}
           />
@@ -127,7 +130,7 @@ export default function CustomersScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[Colors.green600]} />
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[colors.green600]} />
         }
         ListEmptyComponent={
           <Text style={styles.empty}>
@@ -165,7 +168,7 @@ export default function CustomersScreen() {
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Customer Details</Text>
               <TouchableOpacity onPress={() => setSelected(null)} style={styles.closeBtn}>
-                <Ionicons name="close" size={16} color={Colors.gray500} />
+                <Ionicons name="close" size={16} color={colors.gray500} />
               </TouchableOpacity>
             </View>
 
@@ -203,7 +206,7 @@ export default function CustomersScreen() {
                         <Text style={styles.txnDate}>{t.date} · {t.time}</Text>
                         {t.notes ? <Text style={styles.txnNote}>{t.notes}</Text> : null}
                       </View>
-                      <Text style={[styles.txnAmt, { color: t.type === 'contribution' ? Colors.green600 : Colors.red }]}>
+                      <Text style={[styles.txnAmt, { color: t.type === 'contribution' ? colors.green600 : colors.red }]}>
                         {t.type === 'contribution' ? '+' : '−'}{fmt(t.amount)}
                       </Text>
                     </View>
@@ -238,7 +241,7 @@ export default function CustomersScreen() {
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Add New Customer</Text>
               <TouchableOpacity onPress={() => setShowAdd(false)} style={styles.closeBtn}>
-                <Ionicons name="close" size={16} color={Colors.gray500} />
+                <Ionicons name="close" size={16} color={colors.gray500} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -257,51 +260,53 @@ export default function CustomersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:       { flex: 1, backgroundColor: Colors.offWhite },
-  header:       { backgroundColor: Colors.surface, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
+function makeStyles(colors) {
+  return StyleSheet.create({
+  screen:       { flex: 1, backgroundColor: colors.offWhite },
+  header:       { backgroundColor: colors.surface, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
   headerRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  title:        { fontFamily: Typography.display, fontSize: 22, color: Colors.gray900 },
-  searchWrap:   { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.gray50, borderRadius: Radius.sm, paddingHorizontal: 12, borderWidth: 1.5, borderColor: Colors.gray200 },
+  title:        { fontFamily: Typography.display, fontSize: 22, color: colors.gray900 },
+  searchWrap:   { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.gray50, borderRadius: Radius.sm, paddingHorizontal: 12, borderWidth: 1.5, borderColor: colors.gray200 },
   searchIcon:   { fontSize: 16, marginRight: 8 },
-  searchInput:  { flex: 1, paddingVertical: 12, fontFamily: Typography.body, fontSize: 15, color: Colors.gray900 },
+  searchInput:  { flex: 1, paddingVertical: 12, fontFamily: Typography.body, fontSize: 15, color: colors.gray900 },
   list:         { padding: Spacing.lg, gap: 8, paddingBottom: 80 },
-  empty:        { textAlign: 'center', fontFamily: Typography.body, fontSize: 14, color: Colors.gray400, padding: 40 },
+  empty:        { textAlign: 'center', fontFamily: Typography.body, fontSize: 14, color: colors.gray400, padding: 40 },
 
   customerCard: { padding: 14 },
   customerRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
   customerInfo: { flex: 1 },
   nameRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' },
-  customerName: { fontFamily: Typography.bold, fontSize: 15, color: Colors.gray900 },
-  customerMeta: { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
+  customerName: { fontFamily: Typography.bold, fontSize: 15, color: colors.gray900 },
+  customerMeta: { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },
   balanceWrap:  { alignItems: 'flex-end' },
-  balance:      { fontFamily: Typography.bold, fontSize: 16, color: Colors.green600 },
-  balanceLabel: { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400 },
+  balance:      { fontFamily: Typography.bold, fontSize: 16, color: colors.green600 },
+  balanceLabel: { fontFamily: Typography.body, fontSize: 11, color: colors.gray400 },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(17,24,39,0.5)', justifyContent: 'flex-end' },
-  modal:        { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
-  modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: Colors.gray900 },
-  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.gray100, alignItems: 'center', justifyContent: 'center' },
-  closeIcon:    { fontSize: 16, color: Colors.gray500 },
+  modal:        { backgroundColor: colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
+  modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+  modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: colors.gray900 },
+  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.gray100, alignItems: 'center', justifyContent: 'center' },
+  closeIcon:    { fontSize: 16, color: colors.gray500 },
   modalBody:    { padding: 20, gap: 14 },
 
   profileRow:       { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
-  profileName:      { fontFamily: Typography.display, fontSize: 20, color: Colors.gray900 },
-  profilePhone:     { fontFamily: Typography.body, fontSize: 13, color: Colors.gray400 },
-  profileId:        { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
+  profileName:      { fontFamily: Typography.display, fontSize: 20, color: colors.gray900 },
+  profilePhone:     { fontFamily: Typography.body, fontSize: 13, color: colors.gray400 },
+  profileId:        { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },
 
-  balanceSummary:   { backgroundColor: Colors.green50, borderRadius: Radius.sm, padding: 16, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  summaryLabel:     { fontFamily: Typography.bold, fontSize: 10, color: Colors.gray400, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
-  summaryAmount:    { fontFamily: Typography.display, fontSize: 26, color: Colors.green600 },
-  summaryDate:      { fontFamily: Typography.bold, fontSize: 14, color: Colors.gray700 },
+  balanceSummary:   { backgroundColor: colors.green50, borderRadius: Radius.sm, padding: 16, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  summaryLabel:     { fontFamily: Typography.bold, fontSize: 10, color: colors.gray400, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
+  summaryAmount:    { fontFamily: Typography.display, fontSize: 26, color: colors.green600 },
+  summaryDate:      { fontFamily: Typography.bold, fontSize: 14, color: colors.gray700 },
 
-  historyTitle:     { fontFamily: Typography.bold, fontSize: 12, color: Colors.gray500, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
-  txnItem:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.gray50 },
-  txnDate:          { fontFamily: Typography.semiBold, fontSize: 13, color: Colors.gray700 },
-  txnNote:          { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400 },
+  historyTitle:     { fontFamily: Typography.bold, fontSize: 12, color: colors.gray500, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
+  txnItem:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.gray50 },
+  txnDate:          { fontFamily: Typography.semiBold, fontSize: 13, color: colors.gray700 },
+  txnNote:          { fontFamily: Typography.body, fontSize: 11, color: colors.gray400 },
   txnAmt:           { fontFamily: Typography.bold, fontSize: 15 },
 
   actionBtn:        { marginTop: 16, marginBottom: 8 },
   modalButtons:     { flexDirection: 'row', gap: 10, marginTop: 8 },
 });
+}

@@ -10,11 +10,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp, loadAppData } from '../store/AppContext';
+import { useTheme } from '../store/ThemeContext';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
-import { Colors, Typography, Spacing, Radius, Shadows, Gradients } from '../constants/theme';
+import { Typography, Spacing, Radius } from '../constants/theme';
 
 // Format numbers as GHS currency
 function fmt(n) {
@@ -30,6 +31,8 @@ export default function DashboardScreen() {
   const { state, dispatch } = useApp();
   const { currentUser, customers, transactions, isOnline, dataLoading } = state;
   const insets = useSafeAreaInsets();
+  const { colors, gradients } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // ── Computed stats ──────────────────────────────────────────
   const today = todayStr();
@@ -74,13 +77,13 @@ export default function DashboardScreen() {
       style={styles.screen}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[Colors.green600]} />
+        <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[colors.green600]} />
       }
     >
 
       {/* ── Hero Header ─────────────────────────────────────── */}
       <LinearGradient
-        colors={Gradients.hero}
+        colors={gradients.hero}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.hero, { paddingTop: insets.top + 16 }]}
@@ -132,7 +135,7 @@ export default function DashboardScreen() {
         {/* ── Offline warning ─── */}
         {!isOnline && (
           <View style={styles.offlineBanner}>
-            <Ionicons name="cloud-offline-outline" size={20} color={Colors.amber} />
+            <Ionicons name="cloud-offline-outline" size={20} color={colors.amber} />
             <View>
               <Text style={styles.offlineTitle}>Offline Mode Active</Text>
               <Text style={styles.offlineBody}>Transactions will sync when connected.</Text>
@@ -169,7 +172,7 @@ export default function DashboardScreen() {
                   </Text>
                 </View>
                 <View style={styles.txnRight}>
-                  <Text style={[styles.txnAmount, { color: isContrib ? Colors.green600 : Colors.red }]}>
+                  <Text style={[styles.txnAmount, { color: isContrib ? colors.green600 : colors.red }]}>
                     {isContrib ? '+' : '−'}{fmt(t.amount)}
                   </Text>
                   <Badge label={isContrib ? 'Saved' : 'Withdrawn'} type={isContrib ? 'success' : 'danger'} />
@@ -185,43 +188,45 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.offWhite },
+function makeStyles(colors) {
+  return StyleSheet.create({
+    screen:  { flex: 1, backgroundColor: colors.offWhite },
 
-  // Hero
-  hero:       { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 48 },
-  heroTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  greetSub:   { fontFamily: Typography.medium, fontSize: 13, color: 'rgba(255,255,255,0.65)' },
-  greetName:  { fontFamily: Typography.display, fontSize: 22, color: Colors.white },
-  onlinePill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 99, paddingHorizontal: 12, paddingVertical: 5 },
-  offlinePill:{ backgroundColor: 'rgba(217,119,6,0.25)' },
-  onlineDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ade80' },
-  offlineDot: { backgroundColor: Colors.amber },
-  onlineText: { fontFamily: Typography.semiBold, fontSize: 11, color: 'rgba(255,255,255,0.85)' },
-  offlineText:{ color: Colors.amber },
+    // Hero
+    hero:       { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 48 },
+    heroTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    greetSub:   { fontFamily: Typography.medium, fontSize: 13, color: 'rgba(255,255,255,0.65)' },
+    greetName:  { fontFamily: Typography.display, fontSize: 22, color: colors.white },
+    onlinePill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 99, paddingHorizontal: 12, paddingVertical: 5 },
+    offlinePill:{ backgroundColor: 'rgba(217,119,6,0.25)' },
+    onlineDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ade80' },
+    offlineDot: { backgroundColor: colors.amber },
+    onlineText: { fontFamily: Typography.semiBold, fontSize: 11, color: 'rgba(255,255,255,0.85)' },
+    offlineText:{ color: colors.amber },
 
-  heroTotal:  { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: Radius.md, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  heroLabel:  { fontFamily: Typography.bold, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 6 },
-  heroAmount: { fontFamily: Typography.display, fontSize: Typography.size.hero, letterSpacing: -0.5, color: Colors.white },
-  heroSub:    { fontFamily: Typography.body, fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 6 },
+    heroTotal:  { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: Radius.md, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    heroLabel:  { fontFamily: Typography.bold, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 6 },
+    heroAmount: { fontFamily: Typography.display, fontSize: Typography.size.hero, letterSpacing: -0.5, color: colors.white },
+    heroSub:    { fontFamily: Typography.body, fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 6 },
 
-  // Content
-  content:    { padding: Spacing.lg, marginTop: -12 },
-  statRow:    { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  sectionTitle: { fontFamily: Typography.display, fontSize: 17, color: Colors.gray900, marginBottom: 12, marginTop: 8 },
-  emptyNote:  { textAlign: 'center', fontFamily: Typography.body, fontSize: 13, color: Colors.gray400, padding: 24 },
+    // Content
+    content:    { padding: Spacing.lg, marginTop: -12 },
+    statRow:    { flexDirection: 'row', gap: 10, marginBottom: 10 },
+    sectionTitle: { fontFamily: Typography.display, fontSize: 17, color: colors.gray900, marginBottom: 12, marginTop: 8 },
+    emptyNote:  { textAlign: 'center', fontFamily: Typography.body, fontSize: 13, color: colors.gray400, padding: 24 },
 
-  // Offline banner
-  offlineBanner: { backgroundColor: Colors.amberLight, borderRadius: Radius.sm, padding: 14, flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: Colors.amber },
-  offlineTitle:  { fontFamily: Typography.bold, fontSize: 13, color: Colors.amber },
-  offlineBody:   { fontFamily: Typography.body, fontSize: 12, color: Colors.gray500 },
+    // Offline banner
+    offlineBanner: { backgroundColor: colors.amberLight, borderRadius: Radius.sm, padding: 14, flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: colors.amber },
+    offlineTitle:  { fontFamily: Typography.bold, fontSize: 13, color: colors.amber },
+    offlineBody:   { fontFamily: Typography.body, fontSize: 12, color: colors.gray500 },
 
-  // Transactions
-  txnCard:   { marginBottom: 8, padding: 14 },
-  txnRow:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  txnInfo:   { flex: 1 },
-  txnName:   { fontFamily: Typography.bold, fontSize: 14, color: Colors.gray900 },
-  txnMeta:   { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
-  txnRight:  { alignItems: 'flex-end', gap: 4 },
-  txnAmount: { fontFamily: Typography.bold, fontSize: 15 },
-});
+    // Transactions
+    txnCard:   { marginBottom: 8, padding: 14 },
+    txnRow:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    txnInfo:   { flex: 1 },
+    txnName:   { fontFamily: Typography.bold, fontSize: 14, color: colors.gray900 },
+    txnMeta:   { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },
+    txnRight:  { alignItems: 'flex-end', gap: 4 },
+    txnAmount: { fontFamily: Typography.bold, fontSize: 15 },
+  });
+}

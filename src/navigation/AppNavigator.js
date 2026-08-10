@@ -13,6 +13,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
+import { useTheme } from '../store/ThemeContext';
 
 import LoginScreen        from '../screens/LoginScreen';
 import DashboardScreen    from '../screens/DashboardScreen';
@@ -21,7 +22,7 @@ import TransactionsScreen from '../screens/TransactionsScreen';
 import ReportsScreen      from '../screens/ReportsScreen';
 import SettingsScreen     from '../screens/SettingsScreen';
 
-import { Colors, Typography } from '../constants/theme';
+import { Typography } from '../constants/theme';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -38,6 +39,7 @@ const TAB_ICONS = {
 // ── Main tab bar (shown when logged in) ───────────────────────
 function MainTabs() {
   const { state } = useApp();
+  const { colors } = useTheme();
   const isAdmin = state.currentUser?.role === 'admin';
 
   return (
@@ -45,8 +47,8 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: Colors.surface,
-          borderTopColor: Colors.gray100,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.gray100,
           borderTopWidth: 1,
           height: 76,
           paddingTop: 10,
@@ -55,12 +57,12 @@ function MainTabs() {
         tabBarIcon: ({ focused }) => (
           <View style={[
             { width: 40, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-            focused && { backgroundColor: Colors.green50 },
+            focused && { backgroundColor: colors.green50 },
           ]}>
             <Ionicons
               name={focused ? TAB_ICONS[route.name].focused : TAB_ICONS[route.name].unfocused}
               size={20}
-              color={focused ? Colors.green600 : Colors.gray400}
+              color={focused ? colors.green600 : colors.gray400}
             />
           </View>
         ),
@@ -68,7 +70,7 @@ function MainTabs() {
           <Text style={{
             fontFamily: Typography.bold,
             fontSize: 10,
-            color: focused ? Colors.green600 : Colors.gray400,
+            color: focused ? colors.green600 : colors.gray400,
             letterSpacing: 0.4,
           }}>
             {route.name}
@@ -89,10 +91,23 @@ function MainTabs() {
 // ── Root navigator ────────────────────────────────────────────
 export default function AppNavigator() {
   const { state } = useApp();
+  const { colors, isDark } = useTheme();
   const isLoggedIn = !!state.currentUser;
 
+  const navTheme = {
+    dark: isDark,
+    colors: {
+      primary: colors.green500,
+      background: colors.offWhite,
+      card: colors.surface,
+      text: colors.gray900,
+      border: colors.gray100,
+      notification: colors.red,
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isLoggedIn ? (
           <Stack.Screen name="MainTabs" component={MainTabs} />

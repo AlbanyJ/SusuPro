@@ -5,20 +5,23 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Radius, Shadows, Gradients } from '../constants/theme';
-
-const variants = {
-  primary:   { gradient: Gradients.primary, color: Colors.white, shadow: Shadows.glow },
-  secondary: { bg: Colors.green50,  color: Colors.green600 },
-  ghost:     { bg: 'transparent',   color: Colors.gray700 },
-  danger:    { gradient: Gradients.red, color: Colors.white, shadow: Shadows.md },
-};
+import { Typography, Radius } from '../constants/theme';
+import { useTheme } from '../store/ThemeContext';
 
 export default function Button({
   label, onPress, variant = 'primary',
   size = 'md', fullWidth = false,
   disabled = false, loading = false, style,
 }) {
+  const { colors, gradients, shadows } = useTheme();
+
+  const variants = {
+    primary:   { gradient: gradients.primary, color: colors.white, shadow: shadows.glow },
+    secondary: { bg: colors.green50,  color: colors.green600 },
+    ghost:     { bg: 'transparent',   color: colors.gray700 },
+    danger:    { gradient: gradients.red, color: colors.white, shadow: shadows.md },
+  };
+
   const v = variants[variant] || variants.primary;
   const padding = size === 'lg' ? 17 : size === 'sm' ? 9 : 13;
   const fontSize = size === 'lg' ? 16 : size === 'sm' ? 13 : 15;

@@ -4,7 +4,7 @@
 //         On success → navigates to the main app tabs.
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform,
@@ -15,13 +15,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { loginUser } from '../services/authService';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import { Colors, Typography, Radius, Shadows, Spacing, Gradients } from '../constants/theme';
+import { Typography, Radius, Spacing } from '../constants/theme';
+import { useTheme } from '../store/ThemeContext';
 
 export default function LoginScreen() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
+
+  const { colors, gradients, shadows } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, shadows), [colors, shadows]);
 
   async function handleLogin() {
     setError('');
@@ -44,7 +48,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <LinearGradient colors={Gradients.hero} style={styles.bg}>
+    <LinearGradient colors={gradients.hero} style={styles.bg}>
     <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
     <KeyboardAvoidingView
       style={styles.flex}
@@ -56,7 +60,7 @@ export default function LoginScreen() {
           {/* ── Logo ── */}
           <View style={styles.logoRow}>
             <View style={styles.logoIcon}>
-              <Ionicons name="wallet-outline" size={26} color={Colors.white} />
+              <Ionicons name="wallet-outline" size={26} color={colors.white} />
             </View>
             <View>
               <Text style={styles.brandName}>SusuPro</Text>
@@ -90,7 +94,7 @@ export default function LoginScreen() {
 
               {error ? (
                 <View style={styles.errorBox}>
-                  <Ionicons name="alert-circle-outline" size={16} color={Colors.red} />
+                  <Ionicons name="alert-circle-outline" size={16} color={colors.red} />
                   <Text style={styles.errorText}>{error}</Text>
                 </View>
               ) : null}
@@ -124,31 +128,33 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  bg:          { flex: 1 },
-  flex:        { flex: 1 },
-  scroll:      { flexGrow: 1, justifyContent: 'center', padding: Spacing.xl },
-  wrap:        { width: '100%', maxWidth: 400, alignSelf: 'center' },
+function makeStyles(colors, shadows) {
+  return StyleSheet.create({
+    bg:          { flex: 1 },
+    flex:        { flex: 1 },
+    scroll:      { flexGrow: 1, justifyContent: 'center', padding: Spacing.xl },
+    wrap:        { width: '100%', maxWidth: 400, alignSelf: 'center' },
 
-  logoRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 8 },
-  logoIcon:    { width: 52, height: 52, borderRadius: 16, backgroundColor: Colors.green400, alignItems: 'center', justifyContent: 'center', ...Shadows.md },
-  brandName:   { fontFamily: Typography.display, fontSize: 28, color: Colors.white },
-  brandSub:    { fontFamily: Typography.body, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: 1.2 },
-  tagline:     { fontFamily: Typography.body, fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginBottom: 32 },
+    logoRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 8 },
+    logoIcon:    { width: 52, height: 52, borderRadius: 16, backgroundColor: colors.green400, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+    brandName:   { fontFamily: Typography.display, fontSize: 28, color: colors.white },
+    brandSub:    { fontFamily: Typography.body, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: 1.2 },
+    tagline:     { fontFamily: Typography.body, fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginBottom: 32 },
 
-  card:        { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: 28, ...Shadows.lg },
-  heading:     { fontFamily: Typography.display, fontSize: 22, color: Colors.gray900, marginBottom: 4 },
-  subHeading:  { fontFamily: Typography.body, fontSize: 14, color: Colors.gray400, marginBottom: 24 },
-  form:        { gap: 14 },
-  loginBtn:    { marginTop: 8 },
+    card:        { backgroundColor: colors.surface, borderRadius: Radius.lg, padding: 28, ...shadows.lg },
+    heading:     { fontFamily: Typography.display, fontSize: 22, color: colors.gray900, marginBottom: 4 },
+    subHeading:  { fontFamily: Typography.body, fontSize: 14, color: colors.gray400, marginBottom: 24 },
+    form:        { gap: 14 },
+    loginBtn:    { marginTop: 8 },
 
-  errorBox:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.redLight, borderRadius: Radius.sm, padding: 12 },
-  errorText:   { flex: 1, fontFamily: Typography.medium, fontSize: 13, color: Colors.red },
+    errorBox:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.redLight, borderRadius: Radius.sm, padding: 12 },
+    errorText:   { flex: 1, fontFamily: Typography.medium, fontSize: 13, color: colors.red },
 
-  demoBox:     { marginTop: 20, backgroundColor: Colors.green50, borderRadius: Radius.sm, padding: 14, borderWidth: 1, borderColor: Colors.green100 },
-  demoLabel:   { fontFamily: Typography.bold, fontSize: 10, color: Colors.green600, letterSpacing: 1, marginBottom: 8 },
-  demoItem:    { fontFamily: Typography.body, fontSize: 12, color: Colors.gray500, lineHeight: 22 },
+    demoBox:     { marginTop: 20, backgroundColor: colors.green50, borderRadius: Radius.sm, padding: 14, borderWidth: 1, borderColor: colors.green100 },
+    demoLabel:   { fontFamily: Typography.bold, fontSize: 10, color: colors.green600, letterSpacing: 1, marginBottom: 8 },
+    demoItem:    { fontFamily: Typography.body, fontSize: 12, color: colors.gray500, lineHeight: 22 },
 
-  footRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 24 },
-  foot:        { fontFamily: Typography.body, fontSize: 12, color: 'rgba(255,255,255,0.3)' },
-});
+    footRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 24 },
+    foot:        { fontFamily: Typography.body, fontSize: 12, color: 'rgba(255,255,255,0.3)' },
+  });
+}
