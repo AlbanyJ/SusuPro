@@ -11,12 +11,12 @@ import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
-import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
 import {
   DMSans_400Regular,
   DMSans_500Medium,
   DMSans_600SemiBold,
   DMSans_700Bold,
+  DMSans_800ExtraBold,
 } from '@expo-google-fonts/dm-sans';
 import { AppProvider, useApp, ACTIONS, loadAppData } from './src/store/AppContext';
 import { initDatabase }        from './src/database/sqlite';
@@ -30,11 +30,11 @@ function AppInner() {
   const { state, dispatch } = useApp();
 
   const [fontsLoaded] = useFonts({
-    'PlayfairDisplay-Bold': PlayfairDisplay_700Bold,
     'DMSans-Regular':       DMSans_400Regular,
     'DMSans-Medium':        DMSans_500Medium,
     'DMSans-SemiBold':      DMSans_600SemiBold,
     'DMSans-Bold':          DMSans_700Bold,
+    'DMSans-ExtraBold':     DMSans_800ExtraBold,
   });
 
   useEffect(() => {

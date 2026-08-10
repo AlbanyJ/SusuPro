@@ -4,7 +4,7 @@
 // ============================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp, ACTIONS } from '../store/AppContext';
@@ -205,7 +205,10 @@ export default function SettingsScreen() {
 
       {/* ── Add Team Member Modal ── */}
       <Modal visible={showAdd} animationType="slide" transparent>
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modal}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Add Team Member</Text>
@@ -213,7 +216,7 @@ export default function SettingsScreen() {
                 <Ionicons name="close" size={16} color={Colors.gray500} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               <Input label="Full Name" value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} placeholder="e.g. Ama Boateng" required />
               <Input label="Email Address" value={form.email} onChangeText={v => setForm(f => ({ ...f, email: v }))} placeholder="name@example.com" keyboardType="email-address" required />
               <Input label="Temporary Password" value={form.password} onChangeText={v => setForm(f => ({ ...f, password: v }))} placeholder="At least 6 characters" secureTextEntry required />
@@ -239,7 +242,7 @@ export default function SettingsScreen() {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
     </SafeAreaView>

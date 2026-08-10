@@ -40,7 +40,7 @@ export const Gradients = {
 };
 
 export const Typography = {
-  display: 'PlayfairDisplay-Bold',   // headings, big numbers
+  display: 'DMSans-ExtraBold',       // headings, big numbers
   body:    'DMSans-Regular',         // normal text
   medium:  'DMSans-Medium',
   semiBold:'DMSans-SemiBold',

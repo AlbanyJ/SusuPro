@@ -6,8 +6,8 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList,
-  TouchableOpacity, Modal, ScrollView, Alert, RefreshControl,
+  View, Text, StyleSheet, FlatList, Platform,
+  TouchableOpacity, Modal, ScrollView, Alert, RefreshControl, KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -203,7 +203,10 @@ export default function TransactionsScreen() {
 
       {/* ── Record Transaction Modal ── */}
       <Modal visible={showModal} animationType="slide" transparent>
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modal}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Record Transaction</Text>
@@ -301,7 +304,7 @@ export default function TransactionsScreen() {
 
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
