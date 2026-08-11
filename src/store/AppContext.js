@@ -16,6 +16,7 @@
 import React, { createContext, useContext, useReducer } from 'react';
 import { fetchCustomers } from '../services/customerService';
 import { fetchTransactions } from '../services/transactionService';
+import { fetchPendingWithdrawals } from '../services/withdrawalService';
 
 const initialState = {
   // Logged-in user profile (null = not logged in)
@@ -31,6 +32,9 @@ const initialState = {
 
   // All transactions (loaded from Firestore)
   transactions: [],
+
+  // Withdrawal requests awaiting admin approval/rejection
+  pendingWithdrawals: [],
 
   // True while customers/transactions are being fetched
   dataLoading: false,
@@ -58,6 +62,7 @@ export const ACTIONS = {
   SET_DATA_ERROR:     'SET_DATA_ERROR',
   SET_CUSTOMERS:      'SET_CUSTOMERS',
   SET_TRANSACTIONS:   'SET_TRANSACTIONS',
+  SET_PENDING_WITHDRAWALS: 'SET_PENDING_WITHDRAWALS',
 
   ADD_CUSTOMER:       'ADD_CUSTOMER',
   UPDATE_CUSTOMER:    'UPDATE_CUSTOMER',
@@ -86,6 +91,7 @@ function reducer(state, action) {
         currentUser: null,
         customers: [],
         transactions: [],
+        pendingWithdrawals: [],
         auditLog: [],
         offlineQueue: [],
       };
@@ -101,6 +107,9 @@ function reducer(state, action) {
 
     case ACTIONS.SET_TRANSACTIONS:
       return { ...state, transactions: action.payload };
+
+    case ACTIONS.SET_PENDING_WITHDRAWALS:
+      return { ...state, pendingWithdrawals: action.payload };
 
     case ACTIONS.ADD_CUSTOMER:
       return { ...state, customers: [...state.customers, action.payload] };
@@ -184,9 +193,10 @@ export async function loadAppData(dispatch) {
   dispatch({ type: ACTIONS.SET_DATA_LOADING, payload: true });
   dispatch({ type: ACTIONS.SET_DATA_ERROR, payload: null });
 
-  const [customersResult, transactionsResult] = await Promise.all([
+  const [customersResult, transactionsResult, withdrawalsResult] = await Promise.all([
     fetchCustomers(),
     fetchTransactions(),
+    fetchPendingWithdrawals(),
   ]);
 
   if (customersResult.success) {
@@ -194,6 +204,9 @@ export async function loadAppData(dispatch) {
   }
   if (transactionsResult.success) {
     dispatch({ type: ACTIONS.SET_TRANSACTIONS, payload: transactionsResult.data });
+  }
+  if (withdrawalsResult.success) {
+    dispatch({ type: ACTIONS.SET_PENDING_WITHDRAWALS, payload: withdrawalsResult.data });
   }
 
   const error = !customersResult.success

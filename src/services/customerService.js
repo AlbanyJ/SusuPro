@@ -43,15 +43,22 @@ export async function addCustomer(customerData, addedBy) {
     const avatar = nameParts.map(p => p[0]).join('').substring(0, 2).toUpperCase();
 
     const newCustomer = {
-      name:      customerData.name.trim(),
-      phone:     customerData.phone.trim(),
-      idNo:      customerData.idNo?.trim() || '',
-      balance:   0,                   // Always starts at 0
-      active:    true,
+      name:          customerData.name.trim(),
+      phone:         customerData.phone.trim(),
+      idNo:          customerData.idNo?.trim() || '',
+      balance:       0,                   // Always starts at 0
+      active:        true,
       avatar,
-      joinDate:  new Date().toISOString().split('T')[0],
-      createdBy: addedBy,             // Who added this customer
-      createdAt: serverTimestamp(),   // Firebase server time
+      joinDate:      new Date().toISOString().split('T')[0],
+      // Fixed daily amount (e.g. GHS 20/day), or null for a flexible
+      // contribution where the customer pays whatever they bring.
+      fixedAmount:   customerData.fixedAmount ? Number(customerData.fixedAmount) : null,
+      paymentMethod: customerData.paymentMethod || 'cash',   // 'momo' | 'bank' | 'cash'
+      network:       customerData.paymentMethod === 'momo' ? (customerData.network || null) : null,
+      collectorId:   customerData.collectorId || null,       // assigned field collector
+      photo:         customerData.photo || null,              // Firebase Storage download URL
+      createdBy:     addedBy,             // Who added this customer
+      createdAt:     serverTimestamp(),   // Firebase server time
     };
 
     const docRef = await addDoc(collection(db, COLLECTION), newCustomer);

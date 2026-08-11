@@ -73,6 +73,21 @@ service cloud.firestore {
     }
 
 
+    // ── PENDING_WITHDRAWALS collection ────────────────────────
+    // Collectors can only file a withdrawal request here — they
+    // cannot move money themselves. Only an admin can update a
+    // request (to approve or reject it); approving is what actually
+    // triggers the real transaction, over in the transactions
+    // collection. Nobody can delete a request — even rejected ones
+    // stay as a record of what was asked for.
+    match /pendingWithdrawals/{withdrawalId} {
+      allow read:   if isLoggedIn();
+      allow create: if isCollector();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+
     // ── AUDIT_LOG collection ──────────────────────────────────
     // Only admins can read the audit log.
     // The app can write to it (via server functions).

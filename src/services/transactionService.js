@@ -30,7 +30,10 @@ const CUSTOMER_COLLECTION = 'customers';
 //   1. The transaction record is saved
 //   2. The customer balance is updated
 // Both happen together or not at all.
-export async function recordTransaction({ customerId, type, amount, collectorId, collectorName, notes }) {
+export async function recordTransaction({
+  customerId, type, amount, collectorId, collectorName, notes,
+  paymentMethod, network, approvedBy,
+}) {
   try {
     // Validate inputs before touching the database
     if (!customerId) throw new Error('Customer is required.');
@@ -76,11 +79,16 @@ export async function recordTransaction({ customerId, type, amount, collectorId,
         amount,
         collectorId,
         collectorName: collectorName || '',
-        notes:     notes || '',
-        status:    'completed',
-        date:      new Date().toISOString().split('T')[0],
-        time:      new Date().toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' }),
-        createdAt: serverTimestamp(),
+        notes:         notes || '',
+        paymentMethod: paymentMethod || 'cash',
+        network:       paymentMethod === 'momo' ? (network || null) : null,
+        // Set only when this transaction came from an approved
+        // withdrawal request — see withdrawalService.approveWithdrawal.
+        approvedBy:    approvedBy || null,
+        status:        'completed',
+        date:          new Date().toISOString().split('T')[0],
+        time:          new Date().toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' }),
+        createdAt:     serverTimestamp(),
       });
     });
 

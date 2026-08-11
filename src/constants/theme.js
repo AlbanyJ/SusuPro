@@ -42,6 +42,8 @@ const dark = {
   redLight:    '#3a1414',
   amber:       '#fbbf24',
   amberLight:  '#3a2a0c',
+  blue:        '#60a5fa',   // Bank Transfer payment-method pill
+  blueLight:   '#0f2036',
 };
 
 // Same "bold & premium" feel, but blending with warm cream instead
@@ -78,6 +80,8 @@ const light = {
   redLight:    '#fdecec',
   amber:       '#b45309',
   amberLight:  '#fdf1d9',
+  blue:        '#1d4ed8',   // Bank Transfer payment-method pill
+  blueLight:   '#eaf1fd',
 };
 
 export const Palettes = { dark, light };

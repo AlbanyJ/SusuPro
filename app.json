@@ -24,6 +24,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SusuPro uses your photos to set a customer's profile picture.",
+          "cameraPermission": "SusuPro uses your camera to take a customer's profile picture."
+        }
+      ]
+    ]
   }
 }
