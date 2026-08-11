@@ -47,13 +47,21 @@ export default function CustomersScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const isAdmin = currentUser?.role === 'admin';
 
-  const [search,    setSearch]    = useState('');
-  const [showAdd,   setShowAdd]   = useState(false);
-  const [selected,  setSelected]  = useState(null);
-  const [loading,   setLoading]   = useState(false);
-  const [toggling,  setToggling]  = useState(false);
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const [team,      setTeam]      = useState([]);
+  const [search,        setSearch]        = useState('');
+  const [showAdd,       setShowAdd]       = useState(false);
+  const [selected,      setSelected]      = useState(null);
+  const [loading,       setLoading]       = useState(false);
+  const [toggling,      setToggling]      = useState(false);
+  const [photoBusy,     setPhotoBusy]     = useState(false);
+  const [team,          setTeam]          = useState([]);
+  const [unassignedOnly, setUnassignedOnly] = useState(false);
+
+  // Bulk-assign state (admin only)
+  const [selectMode,    setSelectMode]    = useState(false);
+  const [selectedIds,   setSelectedIds]   = useState([]);
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [bulkCollectorId, setBulkCollectorId] = useState('');
+  const [bulkAssigning, setBulkAssigning] = useState(false);
 
   // Add form state
   const [form, setForm] = useState(EMPTY_FORM);
@@ -73,12 +81,20 @@ export default function CustomersScreen() {
     [customers, isAdmin, currentUser]
   );
 
-  // Filter customers by search query
+  // Filter customers by search query (and, for admins, an optional
+  // "unassigned only" toggle to make bulk-assign easy to use).
   const filtered = useMemo(() =>
-    myCustomers.filter(c =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone.includes(search)
-    ), [myCustomers, search]
+    myCustomers
+      .filter(c => !unassignedOnly || !c.collectorId)
+      .filter(c =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.phone.includes(search)
+      ), [myCustomers, search, unassignedOnly]
+  );
+
+  const unassignedCount = useMemo(
+    () => customers.filter(c => !c.collectorId).length,
+    [customers]
   );
 
   // Get transactions for the selected customer
@@ -172,6 +188,44 @@ export default function CustomersScreen() {
     setPhotoBusy(false);
   }
 
+  // ── Bulk-assign (admin only) ──────────────────────────────
+  function toggleSelectMode() {
+    setSelectMode(prev => !prev);
+    setSelectedIds([]);
+  }
+
+  function toggleSelected(id) {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  }
+
+  async function handleBulkAssign() {
+    if (!bulkCollectorId || selectedIds.length === 0) return;
+    setBulkAssigning(true);
+
+    const results = await Promise.all(
+      selectedIds.map(id => updateCustomer(id, { collectorId: bulkCollectorId }))
+    );
+
+    const failed = results.filter(r => !r.success).length;
+    selectedIds.forEach((id, i) => {
+      if (results[i].success) {
+        dispatch({ type: ACTIONS.UPDATE_CUSTOMER, payload: { id, collectorId: bulkCollectorId } });
+      }
+    });
+
+    setBulkAssigning(false);
+    setShowBulkAssign(false);
+    setBulkCollectorId('');
+    setSelectedIds([]);
+    setSelectMode(false);
+
+    if (failed > 0) {
+      Alert.alert('Partial Failure', `${failed} of ${selectedIds.length} customers could not be assigned. Please try again.`);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
 
@@ -180,7 +234,15 @@ export default function CustomersScreen() {
         <View style={styles.headerRow}>
           <Text style={styles.title}>Customers</Text>
           {isAdmin && (
-            <Button label="+ Add" onPress={() => setShowAdd(true)} size="sm" />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Button
+                label={selectMode ? 'Cancel' : 'Select'}
+                onPress={toggleSelectMode}
+                size="sm"
+                variant={selectMode ? 'ghost' : 'secondary'}
+              />
+              {!selectMode && <Button label="+ Add" onPress={() => setShowAdd(true)} size="sm" />}
+            </View>
           )}
         </View>
         {/* Search */}
@@ -195,6 +257,25 @@ export default function CustomersScreen() {
             accessibilityLabel="Search customers by name or phone"
           />
         </View>
+        {/* Unassigned filter (admin only) */}
+        {isAdmin && unassignedCount > 0 && (
+          <TouchableOpacity
+            onPress={() => setUnassignedOnly(prev => !prev)}
+            style={[styles.unassignedChip, unassignedOnly && styles.unassignedChipActive]}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: unassignedOnly }}
+            accessibilityLabel="Show unassigned customers only"
+          >
+            <Ionicons
+              name={unassignedOnly ? 'checkbox' : 'square-outline'}
+              size={16}
+              color={unassignedOnly ? colors.white : colors.gray500}
+            />
+            <Text style={[styles.unassignedChipText, unassignedOnly && styles.unassignedChipTextActive]}>
+              {unassignedCount} unassigned
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ── Customer List ── */}
@@ -211,42 +292,120 @@ export default function CustomersScreen() {
             {dataLoading ? 'Loading customers…' : 'No customers found.'}
           </Text>
         }
-        renderItem={({ item: c }) => (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => setSelected(c)}
-            accessibilityRole="button"
-            accessibilityLabel={`${c.name}, ${c.active ? 'active' : 'inactive'}, balance ${fmt(c.balance)}`}
-            accessibilityHint="Opens customer details"
-          >
-            <Card style={styles.customerCard}>
-              <View style={styles.customerRow}>
-                {c.photo ? (
-                  <Image source={{ uri: c.photo }} style={styles.customerPhoto} />
-                ) : (
-                  <Avatar initials={c.avatar} size={44} variant={c.active ? 'green' : 'gray'} />
-                )}
-                <View style={styles.customerInfo}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.customerName}>{c.name}</Text>
-                    <Badge label={c.active ? 'Active' : 'Inactive'} type="neutral" />
+        renderItem={({ item: c }) => {
+          const isChecked = selectedIds.includes(c.id);
+          return (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => selectMode ? toggleSelected(c.id) : setSelected(c)}
+              accessibilityRole={selectMode ? 'checkbox' : 'button'}
+              accessibilityState={selectMode ? { checked: isChecked } : undefined}
+              accessibilityLabel={selectMode
+                ? `${c.name}, ${isChecked ? 'selected' : 'not selected'}`
+                : `${c.name}, ${c.active ? 'active' : 'inactive'}, balance ${fmt(c.balance)}`}
+              accessibilityHint={selectMode ? undefined : 'Opens customer details'}
+            >
+              <Card style={[styles.customerCard, isChecked && styles.customerCardSelected]}>
+                <View style={styles.customerRow}>
+                  {selectMode && (
+                    <Ionicons
+                      name={isChecked ? 'checkbox' : 'square-outline'}
+                      size={22}
+                      color={isChecked ? colors.green600 : colors.gray300}
+                    />
+                  )}
+                  {c.photo ? (
+                    <Image source={{ uri: c.photo }} style={styles.customerPhoto} />
+                  ) : (
+                    <Avatar initials={c.avatar} size={44} variant={c.active ? 'green' : 'gray'} />
+                  )}
+                  <View style={styles.customerInfo}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.customerName}>{c.name}</Text>
+                      <Badge label={c.active ? 'Active' : 'Inactive'} type="neutral" />
+                    </View>
+                    <Text style={styles.customerMeta}>
+                      {c.phone}{c.idNo ? ` · ${c.idNo}` : ''}
+                    </Text>
+                    <View style={{ marginTop: 4 }}>
+                      <PaymentPill method={c.paymentMethod || 'cash'} network={c.network} />
+                    </View>
                   </View>
-                  <Text style={styles.customerMeta}>
-                    {c.phone}{c.idNo ? ` · ${c.idNo}` : ''}
-                  </Text>
-                  <View style={{ marginTop: 4 }}>
-                    <PaymentPill method={c.paymentMethod || 'cash'} network={c.network} />
+                  <View style={styles.balanceWrap}>
+                    <Text style={styles.balance}>{fmt(c.balance)}</Text>
+                    <Text style={styles.balanceLabel}>balance</Text>
                   </View>
                 </View>
-                <View style={styles.balanceWrap}>
-                  <Text style={styles.balance}>{fmt(c.balance)}</Text>
-                  <Text style={styles.balanceLabel}>balance</Text>
-                </View>
-              </View>
-            </Card>
-          </TouchableOpacity>
-        )}
+              </Card>
+            </TouchableOpacity>
+          );
+        }}
       />
+
+      {/* ── Bulk-assign action bar ── */}
+      {selectMode && selectedIds.length > 0 && (
+        <View style={styles.bulkBar}>
+          <Text style={styles.bulkBarText}>{selectedIds.length} selected</Text>
+          <Button
+            label="Assign to Collector"
+            onPress={() => setShowBulkAssign(true)}
+            size="sm"
+          />
+        </View>
+      )}
+
+      {/* ── Bulk Assign Modal ── */}
+      <Modal visible={showBulkAssign} animationType="slide" transparent>
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHead}>
+              <Text style={styles.modalTitle}>Assign {selectedIds.length} Customer{selectedIds.length === 1 ? '' : 's'}</Text>
+              <TouchableOpacity
+                onPress={() => { setShowBulkAssign(false); setBulkCollectorId(''); }}
+                style={styles.closeBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Ionicons name="close" size={16} color={colors.gray500} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalBody}>
+              <Text style={styles.fieldLabel}>ASSIGN TO COLLECTOR</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+                {team.length === 0 && (
+                  <Text style={styles.noCollectors}>No collectors yet — add one from Settings first.</Text>
+                )}
+                {team.map(u => (
+                  <TouchableOpacity
+                    key={u.id}
+                    onPress={() => setBulkCollectorId(prev => prev === u.id ? '' : u.id)}
+                    style={[styles.collectorChip, bulkCollectorId === u.id && styles.collectorChipActive]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: bulkCollectorId === u.id }}
+                    accessibilityLabel={u.name}
+                  >
+                    <Text style={[styles.collectorChipText, bulkCollectorId === u.id && styles.collectorChipTextActive]}>
+                      {u.name.split(' ')[0]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={styles.modalButtons}>
+                <Button label="Cancel" onPress={() => { setShowBulkAssign(false); setBulkCollectorId(''); }} variant="ghost" style={{ flex: 1 }} />
+                <Button
+                  label="Assign"
+                  onPress={handleBulkAssign}
+                  loading={bulkAssigning}
+                  disabled={!bulkCollectorId}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Customer Detail Modal ── */}
       <Modal visible={!!selected} animationType="slide" transparent>
@@ -467,7 +626,25 @@ function makeStyles(colors) {
   list:         { padding: Spacing.lg, gap: 8, paddingBottom: 80 },
   empty:        { textAlign: 'center', fontFamily: Typography.body, fontSize: 14, color: colors.gray400, padding: 40 },
 
+  unassignedChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    marginTop: 10, paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: Radius.sm, backgroundColor: colors.gray100,
+  },
+  unassignedChipActive:     { backgroundColor: colors.green600 },
+  unassignedChipText:       { fontFamily: Typography.semiBold, fontSize: 12, color: colors.gray700 },
+  unassignedChipTextActive: { color: colors.white },
+
+  bulkBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.gray100,
+    paddingHorizontal: Spacing.lg, paddingVertical: 14,
+  },
+  bulkBarText: { fontFamily: Typography.bold, fontSize: 14, color: colors.gray900 },
+
   customerCard: { padding: 14 },
+  customerCardSelected: { borderWidth: 1.5, borderColor: colors.green600 },
   customerRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
   customerPhoto:{ width: 44, height: 44, borderRadius: 22 },
   customerInfo: { flex: 1 },
