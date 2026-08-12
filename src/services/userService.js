@@ -9,6 +9,7 @@ import {
   doc, setDoc, getDocs, collection, orderBy, query, serverTimestamp,
 } from 'firebase/firestore';
 import { db, getSecondaryAuth } from './firebase';
+import { logAction } from './auditService';
 
 const COLLECTION = 'users';
 
@@ -32,7 +33,7 @@ export async function fetchUsers() {
 // out of their own session — so the new account is created on a
 // throwaway secondary app instance (see getSecondaryAuth) and
 // that secondary session is discarded immediately after.
-export async function createTeamMember({ name, email, password, role }) {
+export async function createTeamMember({ name, email, password, role }, createdBy) {
   const secondaryAuth = getSecondaryAuth();
   try {
     const credential = await createUserWithEmailAndPassword(secondaryAuth, email.trim(), password);
@@ -47,6 +48,15 @@ export async function createTeamMember({ name, email, password, role }) {
       avatar,
       createdAt: serverTimestamp(),
     });
+
+    if (createdBy) {
+      await logAction({
+        action:   'team_member_created',
+        userId:   createdBy,
+        targetId: uid,
+        detail:   `Created ${role} account for ${name.trim()} (${email.trim()})`,
+      });
+    }
 
     return { success: true, id: uid };
   } catch (error) {

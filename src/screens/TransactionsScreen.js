@@ -2,6 +2,9 @@
 // FILE 19: src/screens/TransactionsScreen.js
 // WHAT:   Record new contributions and withdrawals.
 //         Lists all past transactions with filters.
+//         Collectors can only flag a withdrawal for admin
+//         approval — see withdrawalService.requestWithdrawal.
+//         Admins process withdrawals directly, same as before.
 // ============================================================
 
 import React, { useState, useMemo } from 'react';
@@ -13,13 +16,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp, ACTIONS, loadAppData } from '../store/AppContext';
 import { recordTransaction } from '../services/transactionService';
+import { requestWithdrawal } from '../services/withdrawalService';
 import { addToOfflineQueue } from '../database/sqlite';
+import { buildReceiptMessage, sendReceiptViaWhatsApp } from '../services/receiptService';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Input from '../components/Input';
-import { Colors, Typography, Spacing, Radius, Shadows } from '../constants/theme';
+import PaymentPill from '../components/PaymentPill';
+import { Typography, Spacing, Radius } from '../constants/theme';
+import { useTheme } from '../store/ThemeContext';
 
 function fmt(n) { return `GHS ${Number(n).toLocaleString('en-GH')}`; }
 function uid()  { return Math.random().toString(36).substr(2, 9); }
@@ -32,9 +39,20 @@ const FILTERS = [
   { key: 'withdrawal',   label: 'Withdrawals' },
 ];
 
+const PAYMENT_METHODS = [
+  { key: 'cash', label: 'Cash', icon: 'cash-outline' },
+  { key: 'momo', label: 'MoMo', icon: 'phone-portrait-outline' },
+  { key: 'bank', label: 'Bank', icon: 'business-outline' },
+];
+
+const NETWORKS = ['MTN', 'Vodafone', 'AirtelTigo'];
+
 export default function TransactionsScreen() {
   const { state, dispatch } = useApp();
   const { transactions, customers, currentUser, isOnline, dataLoading } = state;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const isAdmin = currentUser?.role === 'admin';
 
   const [filter,    setFilter]    = useState('all');
   const [showModal, setShowModal] = useState(false);
@@ -45,18 +63,79 @@ export default function TransactionsScreen() {
   const [custId,  setCustId]  = useState('');
   const [amount,  setAmount]  = useState('');
   const [notes,   setNotes]   = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [network,       setNetwork]       = useState('MTN');
+
+  // Collectors only ever see their own customers/transactions;
+  // admins see everything.
+  const myCustomers = useMemo(
+    () => isAdmin ? customers : customers.filter(c => c.collectorId === currentUser?.id),
+    [customers, isAdmin, currentUser]
+  );
+  const myTransactions = useMemo(
+    () => isAdmin ? transactions : transactions.filter(t => t.collectorId === currentUser?.id),
+    [transactions, isAdmin, currentUser]
+  );
+
+  // A collector's withdrawal can't be processed directly — it has to
+  // go through admin approval first.
+  const needsApproval = txType === 'withdrawal' && !isAdmin;
 
   // Filtered + sorted transactions
   const displayed = useMemo(() => {
-    const sorted = [...transactions].sort((a, b) =>
+    const sorted = [...myTransactions].sort((a, b) =>
       (b.date + b.time).localeCompare(a.date + a.time)
     );
     return filter === 'all' ? sorted : sorted.filter(t => t.type === filter);
-  }, [transactions, filter]);
+  }, [myTransactions, filter]);
 
   const getCustomer  = (id) => customers.find(c => c.id === id);
   const selectedCust = customers.find(c => c.id === custId);
-  const activeCustomers = customers.filter(c => c.active);
+  const activeCustomers = myCustomers.filter(c => c.active);
+
+  function resetForm() {
+    setCustId(''); setAmount(''); setNotes('');
+    setTxType('contribution'); setPaymentMethod('cash'); setNetwork('MTN');
+  }
+
+  // ── Offer to send a WhatsApp receipt right after a transaction saves ──
+  function offerReceipt(customer, { type, amount, date, time, paymentMethod, network, balance }) {
+    if (!customer?.phone) return;
+    Alert.alert(
+      'Transaction Saved',
+      `Send a receipt to ${customer.name.split(' ')[0]} via WhatsApp?`,
+      [
+        { text: 'Not Now', style: 'cancel' },
+        {
+          text: 'Send Receipt',
+          onPress: async () => {
+            const message = buildReceiptMessage({ customerName: customer.name, type, amount, date, time, paymentMethod, network, balance });
+            const result = await sendReceiptViaWhatsApp({ phone: customer.phone, message });
+            if (!result.success) {
+              Alert.alert('Could Not Open WhatsApp', result.error || 'Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  // ── Resend a receipt for any past transaction ─────────────────
+  async function handleResendReceipt(t) {
+    const cust = getCustomer(t.customerId);
+    if (!cust?.phone) {
+      Alert.alert('No Phone Number', 'This customer has no phone number on file.');
+      return;
+    }
+    const message = buildReceiptMessage({
+      customerName: cust.name, type: t.type, amount: t.amount, date: t.date, time: t.time,
+      paymentMethod: t.paymentMethod || 'cash', network: t.network, balance: cust.balance,
+    });
+    const result = await sendReceiptViaWhatsApp({ phone: cust.phone, message });
+    if (!result.success) {
+      Alert.alert('Could Not Open WhatsApp', result.error || 'Please try again.');
+    }
+  }
 
   // ── Record transaction ─────────────────────────────────────
   async function handleRecord() {
@@ -69,9 +148,40 @@ export default function TransactionsScreen() {
       return;
     }
 
+    // ── Collector withdrawal: flag for approval, no balance change ──
+    if (needsApproval) {
+      if (!isOnline) {
+        Alert.alert('Offline', 'Withdrawal requests need an internet connection to submit for approval.');
+        return;
+      }
+      setLoading(true);
+      const result = await requestWithdrawal({
+        customerId: custId,
+        amount: amt,
+        requestedBy: currentUser.id,
+        requestedByName: currentUser.name,
+        notes,
+        paymentMethod,
+        network,
+      });
+      setLoading(false);
+
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Could not submit withdrawal request.');
+        return;
+      }
+
+      Alert.alert('Submitted', 'Your withdrawal request has been sent to an admin for approval.');
+      resetForm();
+      setShowModal(false);
+      return;
+    }
+
     setLoading(true);
 
     const balanceChange = txType === 'contribution' ? amt : -amt;
+    const custSnapshot = selectedCust;
+    const newBalance = (custSnapshot?.balance || 0) + balanceChange;
 
     if (isOnline) {
       // Online: write straight to Firestore (atomic balance update +
@@ -83,6 +193,8 @@ export default function TransactionsScreen() {
         collectorId:   currentUser.id,
         collectorName: currentUser.name,
         notes,
+        paymentMethod,
+        network,
       });
 
       if (!result.success) {
@@ -98,7 +210,7 @@ export default function TransactionsScreen() {
             id: result.id, customerId: custId, type: txType, amount: amt,
             date: todayStr(), time: timeNow(),
             collectorId: currentUser.id, collectorName: currentUser.name,
-            notes, status: 'completed',
+            notes, paymentMethod, network, status: 'completed',
           },
           balanceChange,
         },
@@ -115,6 +227,7 @@ export default function TransactionsScreen() {
         collectorId:   currentUser.id,
         collectorName: currentUser.name,
         notes,
+        paymentMethod, network,
         status:        'pending_sync',
       };
       await addToOfflineQueue(transaction);
@@ -122,10 +235,14 @@ export default function TransactionsScreen() {
       dispatch({ type: ACTIONS.ADD_TO_QUEUE,    payload: transaction });
     }
 
-    // Reset form
-    setCustId(''); setAmount(''); setNotes(''); setTxType('contribution');
+    resetForm();
     setShowModal(false);
     setLoading(false);
+
+    offerReceipt(custSnapshot, {
+      type: txType, amount: amt, date: todayStr(), time: timeNow(),
+      paymentMethod, network, balance: newBalance,
+    });
   }
 
   return (
@@ -145,6 +262,9 @@ export default function TransactionsScreen() {
               key={f.key}
               onPress={() => setFilter(f.key)}
               style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: filter === f.key }}
+              accessibilityLabel={`Filter: ${f.label}`}
             >
               <Text style={[styles.filterLabel, filter === f.key && styles.filterLabelActive]}>
                 {f.label}
@@ -161,7 +281,7 @@ export default function TransactionsScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[Colors.green600]} />
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch, currentUser)} colors={[colors.green600]} />
         }
         ListEmptyComponent={
           <Text style={styles.empty}>{dataLoading ? 'Loading transactions…' : 'No transactions found.'}</Text>
@@ -173,11 +293,11 @@ export default function TransactionsScreen() {
           return (
             <Card style={styles.txnCard}>
               <View style={styles.txnRow}>
-                <View style={[styles.txnIconBox, { backgroundColor: isContrib ? Colors.green100 : Colors.redLight }]}>
+                <View style={styles.txnIconBox}>
                   <Ionicons
                     name={isContrib ? 'arrow-down' : 'arrow-up'}
                     size={18}
-                    color={isContrib ? Colors.green600 : Colors.red}
+                    color={colors.gray700}
                   />
                 </View>
                 <View style={styles.txnInfo}>
@@ -185,15 +305,30 @@ export default function TransactionsScreen() {
                   <Text style={styles.txnMeta}>
                     {t.date} · {t.time}{t.notes ? ` · ${t.notes}` : ''}
                   </Text>
+                  <View style={styles.txnPillRow}>
+                    <PaymentPill method={t.paymentMethod || 'cash'} network={t.network} />
+                  </View>
                 </View>
                 <View style={styles.txnRight}>
-                  <Text style={[styles.txnAmount, { color: isContrib ? Colors.green600 : Colors.red }]}>
+                  <Text style={[styles.txnAmount, { color: isContrib ? colors.green600 : colors.red }]}>
                     {isContrib ? '+' : '−'}{fmt(t.amount)}
                   </Text>
                   <Badge
                     label={pending ? 'Pending Sync' : (isContrib ? 'Saved' : 'Withdrawn')}
-                    type={pending ? 'warning' : (isContrib ? 'success' : 'danger')}
+                    type={pending ? 'warning' : 'neutral'}
                   />
+                  {cust?.phone && (
+                    <TouchableOpacity
+                      onPress={() => handleResendReceipt(t)}
+                      style={styles.receiptBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Send receipt to ${cust.name} via WhatsApp`}
+                    >
+                      <Ionicons name="logo-whatsapp" size={14} color={colors.green600} />
+                      <Text style={styles.receiptBtnText}>Receipt</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </Card>
@@ -210,8 +345,14 @@ export default function TransactionsScreen() {
           <View style={styles.modal}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Record Transaction</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeBtn}>
-                <Ionicons name="close" size={16} color={Colors.gray500} />
+              <TouchableOpacity
+                onPress={() => setShowModal(false)}
+                style={styles.closeBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Ionicons name="close" size={16} color={colors.gray500} />
               </TouchableOpacity>
             </View>
 
@@ -228,11 +369,14 @@ export default function TransactionsScreen() {
                       styles.typeBtn,
                       txType === t && (t === 'contribution' ? styles.typeBtnContrib : styles.typeBtnWithdraw),
                     ]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: txType === t }}
+                    accessibilityLabel={t === 'contribution' ? 'Contribution' : 'Withdrawal'}
                   >
                     <Ionicons
                       name={t === 'contribution' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
                       size={16}
-                      color={txType === t ? Colors.white : Colors.gray500}
+                      color={txType === t ? colors.white : colors.gray500}
                       style={{ marginRight: 6 }}
                     />
                     <Text style={[styles.typeBtnLabel, txType === t && styles.typeBtnLabelActive]}>
@@ -242,14 +386,26 @@ export default function TransactionsScreen() {
                 ))}
               </View>
 
+              {needsApproval && (
+                <View style={styles.approvalNote}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.gray700} />
+                  <Text style={styles.approvalNoteText}>
+                    Withdrawals need admin approval — this will be sent as a request, not processed immediately.
+                  </Text>
+                </View>
+              )}
+
               {/* Customer selector */}
-              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>CUSTOMER <Text style={{ color: Colors.red }}>*</Text></Text>
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>CUSTOMER <Text style={{ color: colors.red }}>*</Text></Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.custScroll}>
                 {activeCustomers.map(c => (
                   <TouchableOpacity
                     key={c.id}
                     onPress={() => setCustId(c.id)}
                     style={[styles.custChip, custId === c.id && styles.custChipActive]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: custId === c.id }}
+                    accessibilityLabel={`${c.name}, balance ${fmt(c.balance)}`}
                   >
                     <Text style={[styles.custChipText, custId === c.id && styles.custChipTextActive]}>
                       {c.name.split(' ')[0]}
@@ -259,6 +415,9 @@ export default function TransactionsScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
+                {activeCustomers.length === 0 && (
+                  <Text style={styles.noCustomers}>No active customers assigned to you yet.</Text>
+                )}
               </ScrollView>
 
               {/* Amount */}
@@ -277,8 +436,45 @@ export default function TransactionsScreen() {
               {/* Balance warning for withdrawals */}
               {custId && txType === 'withdrawal' && (
                 <View style={styles.warnBox}>
-                  <Ionicons name="alert-circle-outline" size={16} color={Colors.amber} />
+                  <Ionicons name="alert-circle-outline" size={16} color={colors.amber} />
                   <Text style={styles.warnText}>Available balance: {fmt(selectedCust?.balance || 0)}</Text>
+                </View>
+              )}
+
+              {/* Payment method */}
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>PAYMENT METHOD</Text>
+              <View style={styles.methodRow}>
+                {PAYMENT_METHODS.map(m => (
+                  <TouchableOpacity
+                    key={m.key}
+                    onPress={() => setPaymentMethod(m.key)}
+                    style={[styles.methodBtn, paymentMethod === m.key && styles.methodBtnActive]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: paymentMethod === m.key }}
+                    accessibilityLabel={m.label}
+                  >
+                    <Ionicons name={m.icon} size={16} color={paymentMethod === m.key ? colors.white : colors.gray500} />
+                    <Text style={[styles.methodBtnLabel, paymentMethod === m.key && styles.methodBtnLabelActive]}>
+                      {m.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {paymentMethod === 'momo' && (
+                <View style={styles.networkRow}>
+                  {NETWORKS.map(n => (
+                    <TouchableOpacity
+                      key={n}
+                      onPress={() => setNetwork(n)}
+                      style={[styles.networkChip, network === n && styles.networkChipActive]}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: network === n }}
+                      accessibilityLabel={n}
+                    >
+                      <Text style={[styles.networkChipText, network === n && styles.networkChipTextActive]}>{n}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
 
@@ -294,7 +490,7 @@ export default function TransactionsScreen() {
               <View style={styles.modalButtons}>
                 <Button label="Cancel" onPress={() => setShowModal(false)} variant="ghost" style={{ flex: 1 }} />
                 <Button
-                  label={txType === 'contribution' ? 'Save Contribution' : 'Process Withdrawal'}
+                  label={needsApproval ? 'Flag for Approval' : (txType === 'contribution' ? 'Save Contribution' : 'Process Withdrawal')}
                   onPress={handleRecord}
                   loading={loading}
                   variant={txType === 'withdrawal' ? 'danger' : 'primary'}
@@ -310,53 +506,74 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:       { flex: 1, backgroundColor: Colors.offWhite },
-  header:       { backgroundColor: Colors.white, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
+function makeStyles(colors) {
+  return StyleSheet.create({
+  screen:       { flex: 1, backgroundColor: colors.offWhite },
+  header:       { backgroundColor: colors.surface, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
   headerRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  title:        { fontFamily: Typography.display, fontSize: 22, color: Colors.gray900 },
+  title:        { fontFamily: Typography.display, fontSize: 22, color: colors.gray900 },
   filterRow:    { flexDirection: 'row', gap: 8 },
-  filterBtn:    { borderRadius: 99, paddingHorizontal: 14, paddingVertical: 6, backgroundColor: Colors.gray100 },
-  filterBtnActive: { backgroundColor: Colors.green600 },
-  filterLabel:  { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray500 },
-  filterLabelActive: { color: Colors.white },
+  filterBtn:    { borderRadius: 99, paddingHorizontal: 14, paddingVertical: 6, backgroundColor: colors.gray100 },
+  filterBtnActive: { backgroundColor: colors.green600 },
+  filterLabel:  { fontFamily: Typography.bold, fontSize: 13, color: colors.gray500 },
+  filterLabelActive: { color: colors.white },
 
   list:         { padding: Spacing.lg, gap: 8, paddingBottom: 80 },
-  empty:        { textAlign: 'center', fontFamily: Typography.body, fontSize: 14, color: Colors.gray400, padding: 40 },
+  empty:        { textAlign: 'center', fontFamily: Typography.body, fontSize: 14, color: colors.gray400, padding: 40 },
 
   txnCard:      { padding: 14 },
   txnRow:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  txnIconBox:   { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  txnIconBox:   { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.gray100 },
   txnInfo:      { flex: 1 },
-  txnName:      { fontFamily: Typography.bold, fontSize: 14, color: Colors.gray900 },
-  txnMeta:      { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
+  txnName:      { fontFamily: Typography.bold, fontSize: 14, color: colors.gray900 },
+  txnMeta:      { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },
+  txnPillRow:   { flexDirection: 'row', marginTop: 4 },
   txnRight:     { alignItems: 'flex-end', gap: 4 },
   txnAmount:    { fontFamily: Typography.bold, fontSize: 15 },
+  receiptBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  receiptBtnText: { fontFamily: Typography.semiBold, fontSize: 11, color: colors.green600 },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(17,24,39,0.5)', justifyContent: 'flex-end' },
-  modal:        { backgroundColor: Colors.white, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
-  modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: Colors.gray900 },
-  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.gray100, alignItems: 'center', justifyContent: 'center' },
+  modal:        { backgroundColor: colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
+  modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+  modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: colors.gray900 },
+  closeBtn:     { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gray100, alignItems: 'center', justifyContent: 'center' },
   modalBody:    { padding: 20 },
-  fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: Colors.gray500, letterSpacing: 1, marginBottom: 8 },
+  fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: colors.gray500, letterSpacing: 1, marginBottom: 8 },
 
-  typeRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: Colors.gray200 },
-  typeBtn:      { flex: 1, flexDirection: 'row', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
-  typeBtnContrib:  { backgroundColor: Colors.green600 },
-  typeBtnWithdraw: { backgroundColor: Colors.red },
-  typeBtnLabel:    { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray500 },
-  typeBtnLabelActive: { color: Colors.white },
+  typeRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: colors.gray200 },
+  typeBtn:      { flex: 1, flexDirection: 'row', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  typeBtnContrib:  { backgroundColor: colors.green600 },
+  typeBtnWithdraw: { backgroundColor: colors.red },
+  typeBtnLabel:    { fontFamily: Typography.bold, fontSize: 13, color: colors.gray500 },
+  typeBtnLabelActive: { color: colors.white },
+
+  approvalNote:     { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: colors.gray50, borderRadius: Radius.sm, padding: 10, marginTop: 10 },
+  approvalNoteText: { flex: 1, fontFamily: Typography.body, fontSize: 12, color: colors.gray700, lineHeight: 17 },
 
   custScroll:   { marginBottom: 4 },
-  custChip:     { borderRadius: Radius.sm, padding: 10, backgroundColor: Colors.gray100, marginRight: 8, minWidth: 90, alignItems: 'center' },
-  custChipActive: { backgroundColor: Colors.green500 },
-  custChipText:   { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray700 },
-  custChipTextActive: { color: Colors.white },
-  custChipBal:    { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400, marginTop: 2 },
+  custChip:     { borderRadius: Radius.sm, padding: 10, backgroundColor: colors.gray100, marginRight: 8, minWidth: 90, alignItems: 'center' },
+  custChipActive: { backgroundColor: colors.green500 },
+  custChipText:   { fontFamily: Typography.bold, fontSize: 13, color: colors.gray700 },
+  custChipTextActive: { color: colors.white },
+  custChipBal:    { fontFamily: Typography.body, fontSize: 11, color: colors.gray400, marginTop: 2 },
+  noCustomers:    { fontFamily: Typography.body, fontSize: 12, color: colors.gray400, paddingVertical: 12 },
 
-  warnBox:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.amberLight, borderRadius: Radius.sm, padding: 10, marginTop: 10 },
-  warnText:     { fontFamily: Typography.medium, fontSize: 13, color: Colors.amber },
+  warnBox:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.amberLight, borderRadius: Radius.sm, padding: 10, marginTop: 10 },
+  warnText:     { fontFamily: Typography.medium, fontSize: 13, color: colors.amber },
+
+  methodRow:    { flexDirection: 'row', gap: 8 },
+  methodBtn:    { flex: 1, flexDirection: 'row', gap: 6, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm, backgroundColor: colors.gray100 },
+  methodBtnActive: { backgroundColor: colors.green600 },
+  methodBtnLabel:  { fontFamily: Typography.bold, fontSize: 12, color: colors.gray500 },
+  methodBtnLabelActive: { color: colors.white },
+
+  networkRow:   { flexDirection: 'row', gap: 8, marginTop: 8 },
+  networkChip:  { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: Radius.sm, borderWidth: 1.5, borderColor: colors.gray200 },
+  networkChipActive: { backgroundColor: colors.amber, borderColor: colors.amber },
+  networkChipText:   { fontFamily: Typography.semiBold, fontSize: 12, color: colors.gray700 },
+  networkChipTextActive: { color: colors.white },
 
   modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 20 },
 });
+}

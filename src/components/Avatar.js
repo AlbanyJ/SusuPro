@@ -5,29 +5,32 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Gradients } from '../constants/theme';
+import { Typography } from '../constants/theme';
+import { useTheme } from '../store/ThemeContext';
 
 export default function Avatar({ initials = '?', size = 40, variant = 'green', style }) {
+  const { colors, gradients } = useTheme();
+
   const bgMap = {
-    dark:  Colors.ink,
-    gray:  Colors.gray200,
-    red:   Colors.red,
+    dark:  colors.ink,
+    gray:  colors.gray200,
+    red:   colors.red,
   };
   const colorMap = {
-    dark:  Colors.white,
-    gray:  Colors.gray500,
-    red:   Colors.white,
+    dark:  colors.white,
+    gray:  colors.gray500,
+    red:   colors.white,
   };
 
   const circleStyle = {
     width: size, height: size, borderRadius: size / 2,
   };
-  const textStyle = [styles.initials, { fontSize: size * 0.36, color: colorMap[variant] || Colors.white }];
+  const textStyle = [styles.initials, { fontSize: size * 0.36, color: colorMap[variant] || colors.white }];
 
   if (variant === 'green' || !bgMap[variant]) {
     return (
       <LinearGradient
-        colors={Gradients.primary}
+        colors={gradients.primary}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.avatar, circleStyle, style]}

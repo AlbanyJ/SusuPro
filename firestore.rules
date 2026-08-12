@@ -37,49 +37,117 @@ service cloud.firestore {
       return isLoggedIn() && (userRole() == 'collector' || userRole() == 'admin');
     }
 
+    // ── Shape validation ──────────────────────────────────────
+    // Ownership rules alone only stop someone acting as the wrong
+    // person — they don't stop a legitimately-authenticated user
+    // from bypassing the app and writing a document with a negative
+    // amount, a bogus type, or a corrupted balance straight through
+    // the SDK/REST API. These enforce the actual business invariants
+    // at the database, not just in the app's own JS.
+    function isValidTransaction() {
+      return request.resource.data.amount is number &&
+             request.resource.data.amount > 0 &&
+             request.resource.data.type in ['contribution', 'withdrawal'] &&
+             request.resource.data.customerId is string &&
+             request.resource.data.customerId.size() > 0;
+    }
+
+    function isValidWithdrawalRequest() {
+      return request.resource.data.amount is number &&
+             request.resource.data.amount > 0 &&
+             request.resource.data.customerId is string &&
+             request.resource.data.customerId.size() > 0;
+    }
+
+    // A balance can never go negative — this is the single most
+    // important invariant in the whole app.
+    function isValidBalance() {
+      return request.resource.data.balance is number &&
+             request.resource.data.balance >= 0;
+    }
+
 
     // ── USERS collection ─────────────────────────────────────
     // Only admins can create or delete users.
     // Users can read their own profile.
+    // A user editing their OWN profile can change things like their
+    // name — but never their own role. Without that check, a
+    // collector could just set role: 'admin' on themselves.
     match /users/{userId} {
       allow read:   if isLoggedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isAdmin();
-      allow update: if isAdmin() || request.auth.uid == userId;
+      allow update: if isAdmin() ||
+                       (request.auth.uid == userId &&
+                        request.resource.data.role == resource.data.role);
       allow delete: if isAdmin();
     }
 
 
     // ── CUSTOMERS collection ──────────────────────────────────
-    // All logged-in users can read customers.
-    // Only admins can add or delete customers.
-    // Collectors can update (for balance changes during transactions).
+    // Admins read/write everyone. A collector can only read the
+    // customers assigned to them (the app's customer list queries
+    // are scoped the same way — see customerService.fetchCustomers
+    // — so this matches what the UI already restricts to, just
+    // enforced server-side too), and can only touch their assigned
+    // customers' balance (during a transaction) — never their
+    // active status, photo, or collector assignment; those stay
+    // admin-only, matching the UI.
     match /customers/{customerId} {
-      allow read:   if isLoggedIn();
-      allow create: if isAdmin();
-      allow update: if isCollector();  // balance updates during transactions
+      allow read:   if isAdmin() ||
+                       (isLoggedIn() && resource.data.collectorId == request.auth.uid);
+      allow create: if isAdmin() && isValidBalance();
+      allow update: if isValidBalance() &&
+                       (isAdmin() ||
+                        (isCollector() &&
+                         resource.data.collectorId == request.auth.uid &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'updatedAt'])));
       allow delete: if isAdmin();
     }
 
 
     // ── TRANSACTIONS collection ───────────────────────────────
-    // All logged-in users can read transactions.
-    // Any collector (or admin) can create a transaction.
+    // Admins read/write everyone's. A collector can only read
+    // transactions they recorded, and can only create a transaction
+    // attributed to themselves (never impersonate another collector).
     // Nobody can edit or delete a transaction (audit integrity).
     match /transactions/{transactionId} {
-      allow read:   if isLoggedIn();
-      allow create: if isCollector();
+      allow read:   if isAdmin() ||
+                       (isLoggedIn() && resource.data.collectorId == request.auth.uid);
+      allow create: if isValidTransaction() &&
+                       (isAdmin() ||
+                        (isCollector() && request.resource.data.collectorId == request.auth.uid));
       allow update: if false;   // NEVER allow editing transactions
       allow delete: if false;   // NEVER allow deleting transactions
     }
 
 
+    // ── PENDING_WITHDRAWALS collection ────────────────────────
+    // Collectors can only file a withdrawal request here (attributed
+    // to themselves — never on another collector's behalf) — they
+    // cannot move money themselves. A collector can only read their
+    // own requests; an admin sees and approves/rejects everyone's.
+    // Approving is what actually triggers the real transaction, over
+    // in the transactions collection. Nobody can delete a request —
+    // even rejected ones stay as a record of what was asked for.
+    match /pendingWithdrawals/{withdrawalId} {
+      allow read:   if isAdmin() ||
+                       (isLoggedIn() && resource.data.requestedBy == request.auth.uid);
+      allow create: if isValidWithdrawalRequest() &&
+                       (isAdmin() ||
+                        (isCollector() && request.resource.data.requestedBy == request.auth.uid));
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+
     // ── AUDIT_LOG collection ──────────────────────────────────
-    // Only admins can read the audit log.
-    // The app can write to it (via server functions).
-    // Nobody can edit or delete audit entries.
+    // Only admins can read the audit log. Any logged-in user can
+    // write an entry, but only attributed to themselves — nobody can
+    // log an action as if someone else did it. Nobody can edit or
+    // delete audit entries.
     match /audit_log/{logId} {
       allow read:   if isAdmin();
-      allow create: if isCollector();
+      allow create: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if false;
       allow delete: if false;
     }

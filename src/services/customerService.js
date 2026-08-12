@@ -14,15 +14,24 @@ import {
   serverTimestamp,
   query,
   orderBy,
+  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
 const COLLECTION = 'customers'; // Firestore collection name
 
 // ── GET ALL CUSTOMERS ─────────────────────────────────────────
-export async function fetchCustomers() {
+// Admins get every customer; collectors only get the ones assigned
+// to them — matching firestore.rules, which rejects an unscoped
+// query from a non-admin. Pass the logged-in user so this can build
+// the right query (unassigned customers stay invisible to collectors,
+// same as before — that's why bulk-assign exists).
+export async function fetchCustomers(currentUser) {
   try {
-    const q = query(collection(db, COLLECTION), orderBy('name'));
+    const isAdmin = currentUser?.role === 'admin';
+    const q = isAdmin
+      ? query(collection(db, COLLECTION), orderBy('name'))
+      : query(collection(db, COLLECTION), where('collectorId', '==', currentUser?.id || '__none__'), orderBy('name'));
     const snapshot = await getDocs(q);
     const customers = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -43,15 +52,22 @@ export async function addCustomer(customerData, addedBy) {
     const avatar = nameParts.map(p => p[0]).join('').substring(0, 2).toUpperCase();
 
     const newCustomer = {
-      name:      customerData.name.trim(),
-      phone:     customerData.phone.trim(),
-      idNo:      customerData.idNo?.trim() || '',
-      balance:   0,                   // Always starts at 0
-      active:    true,
+      name:          customerData.name.trim(),
+      phone:         customerData.phone.trim(),
+      idNo:          customerData.idNo?.trim() || '',
+      balance:       0,                   // Always starts at 0
+      active:        true,
       avatar,
-      joinDate:  new Date().toISOString().split('T')[0],
-      createdBy: addedBy,             // Who added this customer
-      createdAt: serverTimestamp(),   // Firebase server time
+      joinDate:      new Date().toISOString().split('T')[0],
+      // Fixed daily amount (e.g. GHS 20/day), or null for a flexible
+      // contribution where the customer pays whatever they bring.
+      fixedAmount:   customerData.fixedAmount ? Number(customerData.fixedAmount) : null,
+      paymentMethod: customerData.paymentMethod || 'cash',   // 'momo' | 'bank' | 'cash'
+      network:       customerData.paymentMethod === 'momo' ? (customerData.network || null) : null,
+      collectorId:   customerData.collectorId || null,       // assigned field collector
+      photo:         customerData.photo || null,              // Cloudinary photo URL
+      createdBy:     addedBy,             // Who added this customer
+      createdAt:     serverTimestamp(),   // Firebase server time
     };
 
     const docRef = await addDoc(collection(db, COLLECTION), newCustomer);

@@ -14,7 +14,10 @@ import { loadAppData } from '../store/AppContext';
 // ── WATCH NETWORK STATUS ──────────────────────────────────────
 // Call this once in App.js. It runs in the background forever.
 // When internet comes back, it automatically syncs.
-export function startNetworkWatcher(dispatch, ACTIONS) {
+// currentUserRef is a ref (not a plain value) so this always reads
+// whoever is logged in AT THE MOMENT connectivity returns, even
+// though the listener itself was set up once at app launch.
+export function startNetworkWatcher(dispatch, ACTIONS, currentUserRef) {
   const unsubscribe = NetInfo.addEventListener(async (state) => {
     const isOnline = !!(state.isConnected && state.isInternetReachable);
 
@@ -23,7 +26,7 @@ export function startNetworkWatcher(dispatch, ACTIONS) {
 
     // If just came back online, sync the queue
     if (isOnline) {
-      await syncOfflineQueue(dispatch, ACTIONS);
+      await syncOfflineQueue(dispatch, ACTIONS, currentUserRef?.current);
     }
   });
 
@@ -37,7 +40,7 @@ export function startNetworkWatcher(dispatch, ACTIONS) {
 // (and the "pending sync" UI badge) as soon as it lands — a row
 // that fails (e.g. balance now insufficient) stays queued for the
 // next sync attempt instead of being silently dropped.
-export async function syncOfflineQueue(dispatch, ACTIONS) {
+export async function syncOfflineQueue(dispatch, ACTIONS, currentUser) {
   try {
     const queue = await getOfflineQueue();
     if (!queue || queue.length === 0) return;
@@ -72,7 +75,7 @@ export async function syncOfflineQueue(dispatch, ACTIONS) {
     // Refresh customers/transactions from Firestore so balances and
     // records reflect what actually landed on the server.
     if (syncedCount > 0 && dispatch) {
-      await loadAppData(dispatch);
+      await loadAppData(dispatch, currentUser);
     }
   } catch (error) {
     console.error('[Sync] Error during sync:', error.message);

@@ -4,16 +4,20 @@
 //         variant="dark" renders a deep ink gradient card for
 //         premium/high-emphasis content (e.g. a hero stat).
 // ============================================================
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Radius, Shadows, Gradients } from '../constants/theme';
+import { Radius } from '../constants/theme';
+import { useTheme } from '../store/ThemeContext';
 
 export default function Card({ children, style, variant = 'light' }) {
+  const { colors, gradients, shadows } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, shadows), [colors, shadows]);
+
   if (variant === 'dark') {
     return (
       <LinearGradient
-        colors={Gradients.ink}
+        colors={gradients.ink}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.card, styles.dark, style]}
@@ -30,18 +34,20 @@ export default function Card({ children, style, variant = 'light' }) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: Radius.md,
-    padding: 18,
-  },
-  light: {
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.gray50,
-    ...Shadows.sm,
-  },
-  dark: {
-    ...Shadows.md,
-  },
-});
+function makeStyles(colors, shadows) {
+  return StyleSheet.create({
+    card: {
+      borderRadius: Radius.md,
+      padding: 18,
+    },
+    light: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.gray50,
+      ...shadows.sm,
+    },
+    dark: {
+      ...shadows.md,
+    },
+  });
+}

@@ -3,19 +3,22 @@
 // WHAT:   User profile, security info, and logout button.
 // ============================================================
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, Platform, KeyboardAvoidingView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp, ACTIONS } from '../store/AppContext';
 import { logoutUser } from '../services/authService';
 import { fetchUsers, createTeamMember } from '../services/userService';
+import { isBiometricAvailable, getBiometricLockEnabled, setBiometricLockEnabled, authenticate } from '../services/biometricService';
+import { reportError } from '../services/errorMonitoring';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { Colors, Typography, Spacing, Radius } from '../constants/theme';
+import { Typography, Spacing, Radius } from '../constants/theme';
+import { useTheme } from '../store/ThemeContext';
 
 // Only claims we actually enforce in this codebase — see
 // firebase.js (Auth), firestore.rules (access control) and
@@ -30,6 +33,8 @@ const SECURITY_ITEMS = [
 export default function SettingsScreen() {
   const { state, dispatch } = useApp();
   const { currentUser, offlineQueue, isOnline } = state;
+  const { colors, mode, toggleMode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isAdmin = currentUser?.role === 'admin';
 
   const [team,        setTeam]        = useState([]);
@@ -37,6 +42,38 @@ export default function SettingsScreen() {
   const [showAdd,     setShowAdd]     = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'collector' });
+
+  const [biometricEnabled,   setBiometricEnabled]   = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(true); // assume yes until checked, to avoid a "not supported" flash
+  const [biometricBusy,      setBiometricBusy]      = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const [enabled, supported] = await Promise.all([getBiometricLockEnabled(), isBiometricAvailable()]);
+      setBiometricEnabled(enabled);
+      setBiometricSupported(supported);
+    })();
+  }, []);
+
+  async function handleToggleBiometric(value) {
+    if (value) {
+      // Make the toggle prove it actually works before persisting it —
+      // enabling app lock and then discovering it can't authenticate
+      // would be a bad way to find that out.
+      setBiometricBusy(true);
+      const ok = await authenticate('Confirm to turn on app lock');
+      setBiometricBusy(false);
+      if (!ok) {
+        Alert.alert('Could Not Verify', 'App lock was not enabled.');
+        return;
+      }
+      await setBiometricLockEnabled(true);
+      setBiometricEnabled(true);
+    } else {
+      await setBiometricLockEnabled(false);
+      setBiometricEnabled(false);
+    }
+  }
 
   const loadTeam = useCallback(async () => {
     if (!isAdmin) return;
@@ -59,7 +96,7 @@ export default function SettingsScreen() {
     }
 
     setSaving(true);
-    const result = await createTeamMember(form);
+    const result = await createTeamMember(form, currentUser.id);
     setSaving(false);
 
     if (result.success) {
@@ -107,10 +144,61 @@ export default function SettingsScreen() {
               <View style={{ marginTop: 6 }}>
                 <Badge
                   label={currentUser?.role === 'admin' ? 'Administrator' : 'Collector'}
-                  type={currentUser?.role === 'admin' ? 'success' : 'neutral'}
+                  type={currentUser?.role === 'admin' ? 'accent' : 'neutral'}
                 />
               </View>
             </View>
+          </View>
+        </Card>
+
+        {/* ── Appearance ── */}
+        <Card style={styles.secCard}>
+          <View style={styles.appearanceRow}>
+            <View style={styles.cardHeadRow}>
+              <Ionicons name={mode === 'dark' ? 'moon' : 'sunny'} size={16} color={colors.gray900} />
+              <View style={styles.cardHeadText}>
+                <Text style={[styles.secTitle, { marginBottom: 2 }]}>{mode === 'dark' ? 'Dark Mode' : 'Light Mode'}</Text>
+                <Text style={styles.appearanceSub}>
+                  {mode === 'dark' ? 'Deep, bold surfaces' : 'Warm cream background'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={mode === 'dark'}
+              onValueChange={toggleMode}
+              trackColor={{ false: colors.gray200, true: colors.green600 }}
+              thumbColor={colors.white}
+              accessibilityRole="switch"
+              accessibilityLabel="Dark mode"
+              accessibilityState={{ checked: mode === 'dark' }}
+            />
+          </View>
+        </Card>
+
+        {/* ── App Lock (biometric) ── */}
+        <Card style={styles.secCard}>
+          <View style={styles.appearanceRow}>
+            <View style={styles.cardHeadRow}>
+              <Ionicons name="finger-print-outline" size={16} color={colors.gray900} />
+              <View style={styles.cardHeadText}>
+                <Text style={[styles.secTitle, { marginBottom: 2 }]}>App Lock</Text>
+                <Text style={styles.appearanceSub}>
+                  {biometricSupported
+                    ? 'Require Face ID / fingerprint to open the app'
+                    : 'No Face ID, fingerprint, or passcode set up on this device'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={handleToggleBiometric}
+              disabled={!biometricSupported || biometricBusy}
+              trackColor={{ false: colors.gray200, true: colors.green600 }}
+              thumbColor={colors.white}
+              accessibilityRole="switch"
+              accessibilityLabel="Require Face ID or fingerprint to open the app"
+              accessibilityState={{ checked: biometricEnabled }}
+            />
           </View>
         </Card>
 
@@ -118,7 +206,7 @@ export default function SettingsScreen() {
         {offlineQueue.length > 0 && (
           <Card style={styles.queueCard}>
             <View style={styles.cardHeadRow}>
-              <Ionicons name="cloud-upload-outline" size={16} color={Colors.amber} />
+              <Ionicons name="cloud-upload-outline" size={16} color={colors.amber} />
               <Text style={styles.queueTitle}>Pending Sync</Text>
             </View>
             <Text style={styles.queueBody}>
@@ -133,7 +221,7 @@ export default function SettingsScreen() {
           <Card style={styles.secCard}>
             <View style={styles.teamHead}>
               <View style={styles.cardHeadRow}>
-                <Ionicons name="people-outline" size={16} color={Colors.gray900} />
+                <Ionicons name="people-outline" size={16} color={colors.gray900} />
                 <Text style={styles.secTitle}>Team Members</Text>
               </View>
               <Button label="+ Add" onPress={() => setShowAdd(true)} size="sm" />
@@ -150,7 +238,7 @@ export default function SettingsScreen() {
                     <Text style={styles.teamName}>{u.name}</Text>
                     <Text style={styles.teamEmail}>{u.email}</Text>
                   </View>
-                  <Badge label={u.role === 'admin' ? 'Admin' : 'Collector'} type={u.role === 'admin' ? 'success' : 'neutral'} />
+                  <Badge label={u.role === 'admin' ? 'Admin' : 'Collector'} type={u.role === 'admin' ? 'accent' : 'neutral'} />
                 </View>
               ))
             )}
@@ -160,7 +248,7 @@ export default function SettingsScreen() {
         {/* ── Security Info ── */}
         <Card style={styles.secCard}>
           <View style={styles.cardHeadRow}>
-            <Ionicons name="shield-checkmark-outline" size={16} color={Colors.gray900} />
+            <Ionicons name="shield-checkmark-outline" size={16} color={colors.gray900} />
             <Text style={styles.secTitle}>Security</Text>
           </View>
           {SECURITY_ITEMS.map(item => (
@@ -168,7 +256,7 @@ export default function SettingsScreen() {
               <Text style={styles.secLabel}>{item.label}</Text>
               <View style={styles.secRight}>
                 <Text style={styles.secValue}>{item.value}</Text>
-                <Ionicons name="checkmark" size={14} color={Colors.green500} />
+                <Ionicons name="checkmark" size={14} color={colors.gray700} />
               </View>
             </View>
           ))}
@@ -177,7 +265,7 @@ export default function SettingsScreen() {
         {/* ── Architecture Note ── */}
         <Card style={styles.archCard}>
           <View style={styles.cardHeadRow}>
-            <Ionicons name="construct-outline" size={16} color={Colors.green700} />
+            <Ionicons name="construct-outline" size={16} color={colors.gray900} />
             <Text style={styles.archTitle}>Tech Stack</Text>
           </View>
           {[
@@ -190,6 +278,29 @@ export default function SettingsScreen() {
             <Text key={k} style={styles.archLine}><Text style={styles.archKey}>{k}:</Text> {v}</Text>
           ))}
         </Card>
+
+        {/* ── Dev-only: verify Sentry is actually receiving events.
+            __DEV__ is false in any real build, so this never ships. ── */}
+        {__DEV__ && (
+          <Card style={styles.secCard}>
+            <View style={styles.cardHeadRow}>
+              <Ionicons name="bug-outline" size={16} color={colors.gray900} />
+              <Text style={styles.secTitle}>Sentry Test (dev only)</Text>
+            </View>
+            <Text style={[styles.appearanceSub, { marginTop: 4, marginBottom: 10 }]}>
+              Sends a real test error, then check your Sentry project's Issues tab.
+            </Text>
+            <Button
+              label="Send Test Error to Sentry"
+              onPress={() => {
+                reportError(new Error('SusuPro Sentry verification test'), { source: 'SettingsScreen dev button' });
+                Alert.alert('Sent', 'Check your Sentry dashboard\'s Issues tab in a few seconds.');
+              }}
+              variant="secondary"
+              fullWidth
+            />
+          </Card>
+        )}
 
         <Button
           label="Sign Out"
@@ -212,8 +323,14 @@ export default function SettingsScreen() {
           <View style={styles.modal}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>Add Team Member</Text>
-              <TouchableOpacity onPress={() => setShowAdd(false)} style={styles.closeBtn}>
-                <Ionicons name="close" size={16} color={Colors.gray500} />
+              <TouchableOpacity
+                onPress={() => setShowAdd(false)}
+                style={styles.closeBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Ionicons name="close" size={16} color={colors.gray500} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -228,6 +345,9 @@ export default function SettingsScreen() {
                     key={r}
                     onPress={() => setForm(f => ({ ...f, role: r }))}
                     style={[styles.roleBtn, form.role === r && styles.roleBtnActive]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: form.role === r }}
+                    accessibilityLabel={r === 'admin' ? 'Administrator' : 'Collector'}
                   >
                     <Text style={[styles.roleBtnLabel, form.role === r && styles.roleBtnLabelActive]}>
                       {r === 'admin' ? 'Administrator' : 'Collector'}
@@ -249,56 +369,61 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:      { flex: 1, backgroundColor: Colors.offWhite },
-  header:      { backgroundColor: Colors.white, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  title:       { fontFamily: Typography.display, fontSize: 22, color: Colors.gray900 },
+function makeStyles(colors) {
+  return StyleSheet.create({
+  screen:      { flex: 1, backgroundColor: colors.offWhite },
+  header:      { backgroundColor: colors.surface, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+  title:       { fontFamily: Typography.display, fontSize: 22, color: colors.gray900 },
   content:     { padding: Spacing.lg, gap: 14 },
 
   profileCard: { },
   profileRow:  { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  name:        { fontFamily: Typography.display, fontSize: 18, color: Colors.gray900 },
-  email:       { fontFamily: Typography.body, fontSize: 13, color: Colors.gray400 },
+  name:        { fontFamily: Typography.display, fontSize: 18, color: colors.gray900 },
+  email:       { fontFamily: Typography.body, fontSize: 13, color: colors.gray400 },
 
-  queueCard:   { backgroundColor: Colors.amberLight, borderWidth: 1, borderColor: Colors.amber },
-  queueTitle:  { fontFamily: Typography.bold, fontSize: 14, color: Colors.amber, marginBottom: 4 },
-  queueBody:   { fontFamily: Typography.body, fontSize: 13, color: Colors.gray600 },
+  queueCard:   { backgroundColor: colors.amberLight, borderWidth: 1, borderColor: colors.amber },
+  queueTitle:  { fontFamily: Typography.bold, fontSize: 14, color: colors.amber, marginBottom: 4 },
+  queueBody:   { fontFamily: Typography.body, fontSize: 13, color: colors.gray600 },
 
-  cardHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  cardHeadText: { flex: 1 },
+  appearanceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  appearanceSub: { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },
 
   secCard:     { },
-  secTitle:    { fontFamily: Typography.bold, fontSize: 14, color: Colors.gray900, marginBottom: 12 },
-  secRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.gray50 },
-  secLabel:    { fontFamily: Typography.body, fontSize: 13, color: Colors.gray700 },
+  secTitle:    { fontFamily: Typography.bold, fontSize: 14, color: colors.gray900, marginBottom: 12 },
+  secRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.gray50 },
+  secLabel:    { fontFamily: Typography.body, fontSize: 13, color: colors.gray700 },
   secRight:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  secValue:    { fontFamily: Typography.body, fontSize: 12, color: Colors.gray400 },
+  secValue:    { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },
 
   teamHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  teamEmpty:   { fontFamily: Typography.body, fontSize: 13, color: Colors.gray400, paddingVertical: 8 },
-  teamRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.gray50 },
-  teamName:    { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray900 },
-  teamEmail:   { fontFamily: Typography.body, fontSize: 11, color: Colors.gray400 },
+  teamEmpty:   { fontFamily: Typography.body, fontSize: 13, color: colors.gray400, paddingVertical: 8 },
+  teamRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.gray50 },
+  teamName:    { fontFamily: Typography.bold, fontSize: 13, color: colors.gray900 },
+  teamEmail:   { fontFamily: Typography.body, fontSize: 11, color: colors.gray400 },
 
-  archCard:    { backgroundColor: Colors.green50, borderWidth: 1, borderColor: Colors.green100 },
-  archTitle:   { fontFamily: Typography.bold, fontSize: 13, color: Colors.green700, marginBottom: 10 },
-  archLine:    { fontFamily: Typography.body, fontSize: 12, color: Colors.gray600, lineHeight: 22 },
+  archCard:    { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.gray50 },
+  archTitle:   { fontFamily: Typography.bold, fontSize: 13, color: colors.gray900, marginBottom: 10 },
+  archLine:    { fontFamily: Typography.body, fontSize: 12, color: colors.gray600, lineHeight: 22 },
   archKey:     { fontFamily: Typography.bold },
 
   logoutBtn:   { marginTop: 6 },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(17,24,39,0.5)', justifyContent: 'flex-end' },
-  modal:        { backgroundColor: Colors.white, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
-  modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: Colors.gray900 },
-  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.gray100, alignItems: 'center', justifyContent: 'center' },
+  modal:        { backgroundColor: colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },
+  modalHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+  modalTitle:   { fontFamily: Typography.display, fontSize: 18, color: colors.gray900 },
+  closeBtn:     { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gray100, alignItems: 'center', justifyContent: 'center' },
   modalBody:    { padding: 20, gap: 14 },
-  fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: Colors.gray500, letterSpacing: 1 },
+  fieldLabel:   { fontFamily: Typography.bold, fontSize: 11, color: colors.gray500, letterSpacing: 1 },
 
-  roleRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: Colors.gray200 },
-  roleBtn:      { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: Colors.white },
-  roleBtnActive:{ backgroundColor: Colors.green600 },
-  roleBtnLabel: { fontFamily: Typography.bold, fontSize: 13, color: Colors.gray500 },
-  roleBtnLabelActive: { color: Colors.white },
+  roleRow:      { flexDirection: 'row', borderRadius: Radius.sm, overflow: 'hidden', borderWidth: 1.5, borderColor: colors.gray200 },
+  roleBtn:      { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: colors.surface },
+  roleBtnActive:{ backgroundColor: colors.green600 },
+  roleBtnLabel: { fontFamily: Typography.bold, fontSize: 13, color: colors.gray500 },
+  roleBtnLabelActive: { color: colors.white },
 
   modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 20 },
 });
+}
