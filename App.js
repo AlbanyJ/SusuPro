@@ -96,10 +96,18 @@ function AppInner() {
     // 4. Re-lock whenever the app comes back from the background —
     //    same moment a banking app would ask you to prove it's you
     //    again. Login itself (step 3) already covers first launch.
+    //    IMPORTANT: only 'background' counts as "the user actually
+    //    left the app." 'inactive' is a transient iOS-only state that
+    //    fires for all sorts of unrelated things — the Face ID sheet
+    //    itself, Control Center, a notification banner — and does NOT
+    //    mean the app was backgrounded. Treating it as a trigger here
+    //    was the actual cause of the Face ID re-lock loop: the sheet
+    //    flips active→inactive→active on its own, which kept
+    //    re-locking (and re-prompting) the instant a scan succeeded.
     const appStateSub = AppState.addEventListener('change', async (nextState) => {
       const prevState = appStateRef.current;
       appStateRef.current = nextState;
-      const cameFromBackground = (prevState === 'background' || prevState === 'inactive') && nextState === 'active';
+      const cameFromBackground = prevState === 'background' && nextState === 'active';
       if (cameFromBackground && !isAuthenticatingRef.current && currentUserRef.current && await getBiometricLockEnabled()) {
         setLocked(true);
       }
