@@ -3,17 +3,25 @@
 // WHAT:   Admin-only. Shows summaries, top savers, daily breakdown.
 // ============================================================
 
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp, loadAppData } from '../store/AppContext';
+import { filterByPeriod, exportReportPdf } from '../services/reportService';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
 import Avatar from '../components/Avatar';
+import Button from '../components/Button';
 import { Typography, Spacing, Radius } from '../constants/theme';
 import { useTheme } from '../store/ThemeContext';
 
 function fmt(n) { return `GHS ${Number(n).toLocaleString('en-GH')}`; }
+
+const PERIODS = [
+  { key: '7', label: '7 Days' },
+  { key: '30', label: '30 Days' },
+  { key: 'all', label: 'All Time' },
+];
 
 export default function ReportsScreen() {
   const { state, dispatch } = useApp();
@@ -22,14 +30,28 @@ export default function ReportsScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const [period, setPeriod] = useState('30');
+  const [exporting, setExporting] = useState(false);
+
+  const periodTxns = useMemo(() => filterByPeriod(transactions, period), [transactions, period]);
+
   const totalCollected = useMemo(
-    () => transactions.filter(t => t.type === 'contribution').reduce((s, t) => s + t.amount, 0),
-    [transactions]
+    () => periodTxns.filter(t => t.type === 'contribution').reduce((s, t) => s + t.amount, 0),
+    [periodTxns]
   );
   const totalWithdrawn = useMemo(
-    () => transactions.filter(t => t.type === 'withdrawal').reduce((s, t) => s + t.amount, 0),
-    [transactions]
+    () => periodTxns.filter(t => t.type === 'withdrawal').reduce((s, t) => s + t.amount, 0),
+    [periodTxns]
   );
+
+  async function handleExport() {
+    setExporting(true);
+    const result = await exportReportPdf({ customers, transactions, period });
+    setExporting(false);
+    if (!result.success) {
+      Alert.alert('Export Failed', result.error || 'Could not generate the PDF report.');
+    }
+  }
 
   const topCustomers = useMemo(
     () => [...customers].sort((a, b) => b.balance - a.balance).slice(0, 5),
@@ -63,11 +85,37 @@ export default function ReportsScreen() {
       </View>
 
       <View style={styles.content}>
+        {/* Period selector */}
+        <View style={styles.periodRow}>
+          {PERIODS.map(p => (
+            <TouchableOpacity
+              key={p.key}
+              onPress={() => setPeriod(p.key)}
+              style={[styles.periodChip, period === p.key && styles.periodChipActive]}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: period === p.key }}
+              accessibilityLabel={p.label}
+            >
+              <Text style={[styles.periodChipText, period === p.key && styles.periodChipTextActive]}>{p.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Summary */}
         <View style={styles.statRow}>
-          <StatCard label="Total Collected" value={fmt(totalCollected)} sub="All time" icon="trending-up-outline" accent />
-          <StatCard label="Total Paid Out"  value={fmt(totalWithdrawn)} sub="All time" icon="trending-down-outline" />
+          <StatCard label="Total Collected" value={fmt(totalCollected)} sub={PERIODS.find(p => p.key === period)?.label} icon="trending-up-outline" accent />
+          <StatCard label="Total Paid Out"  value={fmt(totalWithdrawn)} sub={PERIODS.find(p => p.key === period)?.label} icon="trending-down-outline" />
         </View>
+
+        <Button
+          label="Export PDF Report"
+          onPress={handleExport}
+          loading={exporting}
+          disabled={exporting}
+          variant="secondary"
+          fullWidth
+          style={{ marginBottom: 20 }}
+        />
 
         {/* Top Savers */}
         <Text style={styles.sectionTitle}>Top Savers</Text>
@@ -136,6 +184,13 @@ function makeStyles(colors) {
   title:        { fontFamily: Typography.display, fontSize: 22, color: colors.gray900 },
   sub:          { fontFamily: Typography.body, fontSize: 13, color: colors.gray400 },
   content:      { padding: Spacing.lg },
+
+  periodRow:        { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  periodChip:        { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: Radius.sm, backgroundColor: colors.gray100 },
+  periodChipActive:  { backgroundColor: colors.green600 },
+  periodChipText:       { fontFamily: Typography.semiBold, fontSize: 12, color: colors.gray700 },
+  periodChipTextActive: { color: colors.white },
+
   statRow:      { flexDirection: 'row', gap: 10, marginBottom: 20 },
   sectionTitle: { fontFamily: Typography.display, fontSize: 17, color: colors.gray900, marginBottom: 12, marginTop: 4 },
 
