@@ -37,6 +37,35 @@ service cloud.firestore {
       return isLoggedIn() && (userRole() == 'collector' || userRole() == 'admin');
     }
 
+    // ── Shape validation ──────────────────────────────────────
+    // Ownership rules alone only stop someone acting as the wrong
+    // person — they don't stop a legitimately-authenticated user
+    // from bypassing the app and writing a document with a negative
+    // amount, a bogus type, or a corrupted balance straight through
+    // the SDK/REST API. These enforce the actual business invariants
+    // at the database, not just in the app's own JS.
+    function isValidTransaction() {
+      return request.resource.data.amount is number &&
+             request.resource.data.amount > 0 &&
+             request.resource.data.type in ['contribution', 'withdrawal'] &&
+             request.resource.data.customerId is string &&
+             request.resource.data.customerId.size() > 0;
+    }
+
+    function isValidWithdrawalRequest() {
+      return request.resource.data.amount is number &&
+             request.resource.data.amount > 0 &&
+             request.resource.data.customerId is string &&
+             request.resource.data.customerId.size() > 0;
+    }
+
+    // A balance can never go negative — this is the single most
+    // important invariant in the whole app.
+    function isValidBalance() {
+      return request.resource.data.balance is number &&
+             request.resource.data.balance >= 0;
+    }
+
 
     // ── USERS collection ─────────────────────────────────────
     // Only admins can create or delete users.
@@ -66,11 +95,12 @@ service cloud.firestore {
     match /customers/{customerId} {
       allow read:   if isAdmin() ||
                        (isLoggedIn() && resource.data.collectorId == request.auth.uid);
-      allow create: if isAdmin();
-      allow update: if isAdmin() ||
-                       (isCollector() &&
-                        resource.data.collectorId == request.auth.uid &&
-                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'updatedAt']));
+      allow create: if isAdmin() && isValidBalance();
+      allow update: if isValidBalance() &&
+                       (isAdmin() ||
+                        (isCollector() &&
+                         resource.data.collectorId == request.auth.uid &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'updatedAt'])));
       allow delete: if isAdmin();
     }
 
@@ -83,8 +113,9 @@ service cloud.firestore {
     match /transactions/{transactionId} {
       allow read:   if isAdmin() ||
                        (isLoggedIn() && resource.data.collectorId == request.auth.uid);
-      allow create: if isAdmin() ||
-                       (isCollector() && request.resource.data.collectorId == request.auth.uid);
+      allow create: if isValidTransaction() &&
+                       (isAdmin() ||
+                        (isCollector() && request.resource.data.collectorId == request.auth.uid));
       allow update: if false;   // NEVER allow editing transactions
       allow delete: if false;   // NEVER allow deleting transactions
     }
@@ -101,8 +132,9 @@ service cloud.firestore {
     match /pendingWithdrawals/{withdrawalId} {
       allow read:   if isAdmin() ||
                        (isLoggedIn() && resource.data.requestedBy == request.auth.uid);
-      allow create: if isAdmin() ||
-                       (isCollector() && request.resource.data.requestedBy == request.auth.uid);
+      allow create: if isValidWithdrawalRequest() &&
+                       (isAdmin() ||
+                        (isCollector() && request.resource.data.requestedBy == request.auth.uid));
       allow update: if isAdmin();
       allow delete: if false;
     }
