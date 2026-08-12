@@ -7,7 +7,7 @@
 //         assigned customers only.
 // ============================================================
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp, ACTIONS, loadAppData } from '../store/AppContext';
 import { useTheme } from '../store/ThemeContext';
 import { approveWithdrawal, rejectWithdrawal } from '../services/withdrawalService';
+import { requestNotificationPermissions, scheduleUnpaidReminder } from '../services/notificationService';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
 import Avatar from '../components/Avatar';
@@ -99,6 +100,18 @@ export default function DashboardScreen() {
     () => pendingWithdrawals.filter(w => w.status === 'pending'),
     [pendingWithdrawals]
   );
+
+  // Collectors get a daily 9am reminder listing how many of their
+  // customers haven't paid today. Rescheduled with the freshest count
+  // every time the Dashboard's data loads.
+  useEffect(() => {
+    if (isAdmin || dataLoading) return;
+    (async () => {
+      const granted = await requestNotificationPermissions();
+      if (!granted) return;
+      await scheduleUnpaidReminder(notPaidToday.length);
+    })();
+  }, [isAdmin, dataLoading, notPaidToday.length]);
 
   // Helper: find customer by ID
   const getCustomer = (id) => customers.find(c => c.id === id);
