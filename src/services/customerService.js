@@ -56,7 +56,7 @@ export async function addCustomer(customerData, addedBy) {
       paymentMethod: customerData.paymentMethod || 'cash',   // 'momo' | 'bank' | 'cash'
       network:       customerData.paymentMethod === 'momo' ? (customerData.network || null) : null,
       collectorId:   customerData.collectorId || null,       // assigned field collector
-      photo:         customerData.photo || null,              // Firebase Storage download URL
+      photo:         customerData.photo || null,              // Cloudinary photo URL
       createdBy:     addedBy,             // Who added this customer
       createdAt:     serverTimestamp(),   // Firebase server time
     };
