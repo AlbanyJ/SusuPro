@@ -45,6 +45,14 @@
         {
           "faceIDPermission": "SusuPro uses Face ID to unlock the app after you've already signed in."
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "kwame-nkrumah-university-of-ua"
+        }
       ]
     ]
   }
