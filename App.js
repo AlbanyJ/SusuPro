@@ -6,8 +6,8 @@
 //         Also initialises the local SQLite database.
 // ============================================================
 
-import React, { useEffect, useRef } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, ActivityIndicator, AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -22,8 +22,10 @@ import { AppProvider, useApp, ACTIONS, loadAppData } from './src/store/AppContex
 import { ThemeProvider, useTheme } from './src/store/ThemeContext';
 import { initDatabase }        from './src/database/sqlite';
 import { startNetworkWatcher } from './src/services/syncService';
-import { onAuthChange, getUserProfile } from './src/services/authService';
+import { onAuthChange, getUserProfile, logoutUser } from './src/services/authService';
+import { getBiometricLockEnabled } from './src/services/biometricService';
 import AppNavigator             from './src/navigation/AppNavigator';
+import LockScreen               from './src/screens/LockScreen';
 
 // ── Inner component that has access to global state ───────────
 function AppInner() {
@@ -36,6 +38,13 @@ function AppInner() {
   // moment someone logs in or out. A ref sidesteps that.
   const currentUserRef = useRef(state.currentUser);
   useEffect(() => { currentUserRef.current = state.currentUser; }, [state.currentUser]);
+
+  // Biometric app-lock (opt-in, see Settings). Re-checked from
+  // AsyncStorage (not cached) at each lock-trigger point so a toggle
+  // change in Settings takes effect on the very next lock, not just
+  // after a full app restart.
+  const [locked, setLocked] = useState(false);
+  const appStateRef = useRef(AppState.currentState);
 
   const [fontsLoaded] = useFonts({
     'DMSans-Regular':       DMSans_400Regular,
@@ -62,6 +71,7 @@ function AppInner() {
           if (profile) {
             dispatch({ type: ACTIONS.LOGIN, payload: profile });
             await loadAppData(dispatch, profile);
+            if (await getBiometricLockEnabled()) setLocked(true);
           } else {
             dispatch({ type: ACTIONS.LOGOUT });
           }
@@ -75,10 +85,23 @@ function AppInner() {
       dispatch({ type: ACTIONS.SET_AUTH_LOADING, payload: false });
     });
 
+    // 4. Re-lock whenever the app comes back from the background —
+    //    same moment a banking app would ask you to prove it's you
+    //    again. Login itself (step 3) already covers first launch.
+    const appStateSub = AppState.addEventListener('change', async (nextState) => {
+      const prevState = appStateRef.current;
+      appStateRef.current = nextState;
+      const cameFromBackground = (prevState === 'background' || prevState === 'inactive') && nextState === 'active';
+      if (cameFromBackground && currentUserRef.current && await getBiometricLockEnabled()) {
+        setLocked(true);
+      }
+    });
+
     // Cleanup when app closes
     return () => {
       unsubscribeNetwork && unsubscribeNetwork();
       unsubscribeAuth && unsubscribeAuth();
+      appStateSub.remove();
     };
   }, []);
 
@@ -87,6 +110,19 @@ function AppInner() {
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.offWhite }}>
         <ActivityIndicator size="large" color={colors.green500} />
       </View>
+    );
+  }
+
+  if (locked && state.currentUser) {
+    return (
+      <LockScreen
+        onUnlock={() => setLocked(false)}
+        onSignOut={async () => {
+          setLocked(false);
+          await logoutUser();
+          dispatch({ type: ACTIONS.LOGOUT });
+        }}
+      />
     );
   }
 

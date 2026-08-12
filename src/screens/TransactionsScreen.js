@@ -18,6 +18,7 @@ import { useApp, ACTIONS, loadAppData } from '../store/AppContext';
 import { recordTransaction } from '../services/transactionService';
 import { requestWithdrawal } from '../services/withdrawalService';
 import { addToOfflineQueue } from '../database/sqlite';
+import { buildReceiptMessage, sendReceiptViaWhatsApp } from '../services/receiptService';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
@@ -97,6 +98,45 @@ export default function TransactionsScreen() {
     setTxType('contribution'); setPaymentMethod('cash'); setNetwork('MTN');
   }
 
+  // ── Offer to send a WhatsApp receipt right after a transaction saves ──
+  function offerReceipt(customer, { type, amount, date, time, paymentMethod, network, balance }) {
+    if (!customer?.phone) return;
+    Alert.alert(
+      'Transaction Saved',
+      `Send a receipt to ${customer.name.split(' ')[0]} via WhatsApp?`,
+      [
+        { text: 'Not Now', style: 'cancel' },
+        {
+          text: 'Send Receipt',
+          onPress: async () => {
+            const message = buildReceiptMessage({ customerName: customer.name, type, amount, date, time, paymentMethod, network, balance });
+            const result = await sendReceiptViaWhatsApp({ phone: customer.phone, message });
+            if (!result.success) {
+              Alert.alert('Could Not Open WhatsApp', result.error || 'Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  // ── Resend a receipt for any past transaction ─────────────────
+  async function handleResendReceipt(t) {
+    const cust = getCustomer(t.customerId);
+    if (!cust?.phone) {
+      Alert.alert('No Phone Number', 'This customer has no phone number on file.');
+      return;
+    }
+    const message = buildReceiptMessage({
+      customerName: cust.name, type: t.type, amount: t.amount, date: t.date, time: t.time,
+      paymentMethod: t.paymentMethod || 'cash', network: t.network, balance: cust.balance,
+    });
+    const result = await sendReceiptViaWhatsApp({ phone: cust.phone, message });
+    if (!result.success) {
+      Alert.alert('Could Not Open WhatsApp', result.error || 'Please try again.');
+    }
+  }
+
   // ── Record transaction ─────────────────────────────────────
   async function handleRecord() {
     const amt = parseFloat(amount);
@@ -140,6 +180,8 @@ export default function TransactionsScreen() {
     setLoading(true);
 
     const balanceChange = txType === 'contribution' ? amt : -amt;
+    const custSnapshot = selectedCust;
+    const newBalance = (custSnapshot?.balance || 0) + balanceChange;
 
     if (isOnline) {
       // Online: write straight to Firestore (atomic balance update +
@@ -196,6 +238,11 @@ export default function TransactionsScreen() {
     resetForm();
     setShowModal(false);
     setLoading(false);
+
+    offerReceipt(custSnapshot, {
+      type: txType, amount: amt, date: todayStr(), time: timeNow(),
+      paymentMethod, network, balance: newBalance,
+    });
   }
 
   return (
@@ -270,6 +317,18 @@ export default function TransactionsScreen() {
                     label={pending ? 'Pending Sync' : (isContrib ? 'Saved' : 'Withdrawn')}
                     type={pending ? 'warning' : 'neutral'}
                   />
+                  {cust?.phone && (
+                    <TouchableOpacity
+                      onPress={() => handleResendReceipt(t)}
+                      style={styles.receiptBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Send receipt to ${cust.name} via WhatsApp`}
+                    >
+                      <Ionicons name="logo-whatsapp" size={14} color={colors.green600} />
+                      <Text style={styles.receiptBtnText}>Receipt</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </Card>
@@ -471,6 +530,8 @@ function makeStyles(colors) {
   txnPillRow:   { flexDirection: 'row', marginTop: 4 },
   txnRight:     { alignItems: 'flex-end', gap: 4 },
   txnAmount:    { fontFamily: Typography.bold, fontSize: 15 },
+  receiptBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  receiptBtnText: { fontFamily: Typography.semiBold, fontSize: 11, color: colors.green600 },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(17,24,39,0.5)', justifyContent: 'flex-end' },
   modal:        { backgroundColor: colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, maxHeight: '90%' },

@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp, ACTIONS } from '../store/AppContext';
 import { logoutUser } from '../services/authService';
 import { fetchUsers, createTeamMember } from '../services/userService';
+import { isBiometricAvailable, getBiometricLockEnabled, setBiometricLockEnabled, authenticate } from '../services/biometricService';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
 import Card from '../components/Card';
@@ -40,6 +41,38 @@ export default function SettingsScreen() {
   const [showAdd,     setShowAdd]     = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'collector' });
+
+  const [biometricEnabled,   setBiometricEnabled]   = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(true); // assume yes until checked, to avoid a "not supported" flash
+  const [biometricBusy,      setBiometricBusy]      = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const [enabled, supported] = await Promise.all([getBiometricLockEnabled(), isBiometricAvailable()]);
+      setBiometricEnabled(enabled);
+      setBiometricSupported(supported);
+    })();
+  }, []);
+
+  async function handleToggleBiometric(value) {
+    if (value) {
+      // Make the toggle prove it actually works before persisting it —
+      // enabling app lock and then discovering it can't authenticate
+      // would be a bad way to find that out.
+      setBiometricBusy(true);
+      const ok = await authenticate('Confirm to turn on app lock');
+      setBiometricBusy(false);
+      if (!ok) {
+        Alert.alert('Could Not Verify', 'App lock was not enabled.');
+        return;
+      }
+      await setBiometricLockEnabled(true);
+      setBiometricEnabled(true);
+    } else {
+      await setBiometricLockEnabled(false);
+      setBiometricEnabled(false);
+    }
+  }
 
   const loadTeam = useCallback(async () => {
     if (!isAdmin) return;
@@ -137,6 +170,33 @@ export default function SettingsScreen() {
               accessibilityRole="switch"
               accessibilityLabel="Dark mode"
               accessibilityState={{ checked: mode === 'dark' }}
+            />
+          </View>
+        </Card>
+
+        {/* ── App Lock (biometric) ── */}
+        <Card style={styles.secCard}>
+          <View style={styles.appearanceRow}>
+            <View style={styles.cardHeadRow}>
+              <Ionicons name="finger-print-outline" size={16} color={colors.gray900} />
+              <View>
+                <Text style={[styles.secTitle, { marginBottom: 2 }]}>App Lock</Text>
+                <Text style={styles.appearanceSub}>
+                  {biometricSupported
+                    ? 'Require Face ID / fingerprint to open the app'
+                    : 'No Face ID, fingerprint, or passcode set up on this device'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={handleToggleBiometric}
+              disabled={!biometricSupported || biometricBusy}
+              trackColor={{ false: colors.gray200, true: colors.green600 }}
+              thumbColor={colors.white}
+              accessibilityRole="switch"
+              accessibilityLabel="Require Face ID or fingerprint to open the app"
+              accessibilityState={{ checked: biometricEnabled }}
             />
           </View>
         </Card>

@@ -39,6 +39,12 @@
           "icon": "./assets/android-icon-monochrome.png",
           "color": "#1a7344"
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "SusuPro uses Face ID to unlock the app after you've already signed in."
+        }
       ]
     ]
   }
