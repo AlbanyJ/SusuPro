@@ -18,7 +18,7 @@ import Button from '../components/Button';
 import { Typography, Spacing, Radius } from '../constants/theme';
 import { useTheme } from '../store/ThemeContext';
 
-export default function LockScreen({ onUnlock, onSignOut }) {
+export default function LockScreen({ onUnlock, onSignOut, isAuthenticatingRef }) {
   const { colors, gradients, shadows } = useTheme();
   const styles = makeStyles(colors, shadows);
   const [checking, setChecking] = useState(false);
@@ -27,11 +27,21 @@ export default function LockScreen({ onUnlock, onSignOut }) {
   async function tryUnlock() {
     setChecking(true);
     setFailed(false);
+    if (isAuthenticatingRef) isAuthenticatingRef.current = true;
     const ok = await authenticate();
     setChecking(false);
     if (ok) {
+      // The Face ID sheet dismissing can fire a trailing AppState
+      // event slightly AFTER this promise resolves — hold the guard
+      // up for a beat so App.js's re-lock listener doesn't catch it
+      // and immediately undo this unlock (see App.js for the full
+      // explanation).
+      setTimeout(() => {
+        if (isAuthenticatingRef) isAuthenticatingRef.current = false;
+      }, 500);
       onUnlock();
     } else {
+      if (isAuthenticatingRef) isAuthenticatingRef.current = false;
       setFailed(true);
     }
   }
