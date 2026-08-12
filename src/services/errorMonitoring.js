@@ -32,6 +32,14 @@ export function initErrorMonitoring() {
     // unhandled promise rejections, which covers most real bugs.
     tracesSampleRate: 0.2,
     enableAutoSessionTracking: true,
+    sendDefaultPii: true,
+    enableLogs: true,
+    // Deliberately NOT enabling Sentry's session replay/screen-recording
+    // here (mobileReplayIntegration) — every screen in this app shows
+    // real customer names, phone numbers, and balances, and replay
+    // would ship recordings of that to Sentry by default unless masking
+    // is configured carefully first. Worth revisiting deliberately, not
+    // something to turn on by default for a money app.
   });
 }
 

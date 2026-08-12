@@ -27,30 +27,12 @@ import { getBiometricLockEnabled } from './src/services/biometricService';
 import { initErrorMonitoring, setErrorMonitoringUser, wrapApp } from './src/services/errorMonitoring';
 import AppNavigator             from './src/navigation/AppNavigator';
 import LockScreen               from './src/screens/LockScreen';
-import * as Sentry from '@sentry/react-native';
-
-Sentry.init({
-  dsn: 'https://aaa060d36896ac9c708e103741d0cdf8@o4511898878541824.ingest.de.sentry.io/4511898889420880',
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
-
-  // Enable Logs
-  enableLogs: true,
-
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-});
 
 // Runs once at module load — before any component mounts — so crash
 // reporting is live from the very first render, not just after some
-// effect gets around to enabling it.
+// effect gets around to enabling it. All Sentry config lives in
+// errorMonitoring.js (DSN comes from EXPO_PUBLIC_SENTRY_DSN in .env,
+// not hardcoded) — this is the only place Sentry.init runs.
 initErrorMonitoring();
 
 // ── Inner component that has access to global state ───────────
@@ -195,7 +177,7 @@ function App() {
   );
 }
 
-// Sentry.wrap adds a top-level error boundary (so a render crash
+// wrapApp adds a top-level Sentry error boundary (so a render crash
 // reports instead of just showing a blank white screen) and basic
 // navigation/performance tracing. No-ops if no DSN is configured.
-export default Sentry.wrap(wrapApp(App));
+export default wrapApp(App);
