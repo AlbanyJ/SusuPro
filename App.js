@@ -24,8 +24,14 @@ import { initDatabase }        from './src/database/sqlite';
 import { startNetworkWatcher } from './src/services/syncService';
 import { onAuthChange, getUserProfile, logoutUser } from './src/services/authService';
 import { getBiometricLockEnabled } from './src/services/biometricService';
+import { initErrorMonitoring, setErrorMonitoringUser, wrapApp } from './src/services/errorMonitoring';
 import AppNavigator             from './src/navigation/AppNavigator';
 import LockScreen               from './src/screens/LockScreen';
+
+// Runs once at module load — before any component mounts — so crash
+// reporting is live from the very first render, not just after some
+// effect gets around to enabling it.
+initErrorMonitoring();
 
 // ── Inner component that has access to global state ───────────
 function AppInner() {
@@ -78,6 +84,7 @@ function AppInner() {
           const profile = await getUserProfile(firebaseUser.uid);
           if (profile) {
             dispatch({ type: ACTIONS.LOGIN, payload: profile });
+            setErrorMonitoringUser(profile);
             await loadAppData(dispatch, profile);
             if (await getBiometricLockEnabled()) setLocked(true);
           } else {
@@ -88,6 +95,7 @@ function AppInner() {
           dispatch({ type: ACTIONS.LOGOUT });
         }
       } else {
+        setErrorMonitoringUser(null);
         dispatch({ type: ACTIONS.LOGOUT });
       }
       dispatch({ type: ACTIONS.SET_AUTH_LOADING, payload: false });
@@ -152,7 +160,7 @@ function AppInner() {
 }
 
 // ── Root export — this is what Expo loads ─────────────────────
-export default function App() {
+function App() {
   return (
     // SafeAreaProvider lets every screen (and the tab bar) know how
     // much space the notch/status bar/home indicator take up.
@@ -166,3 +174,8 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+// Sentry.wrap adds a top-level error boundary (so a render crash
+// reports instead of just showing a blank white screen) and basic
+// navigation/performance tracing. No-ops if no DSN is configured.
+export default wrapApp(App);
