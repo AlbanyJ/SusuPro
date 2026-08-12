@@ -99,12 +99,19 @@ export async function recordTransaction({
 }
 
 // ── FETCH ALL TRANSACTIONS ────────────────────────────────────
-export async function fetchTransactions() {
+// Admins get every transaction; collectors only get the ones they
+// recorded — matching firestore.rules, which rejects an unscoped
+// query from a non-admin.
+export async function fetchTransactions(currentUser) {
   try {
-    const q = query(
-      collection(db, TXN_COLLECTION),
-      orderBy('createdAt', 'desc')
-    );
+    const isAdmin = currentUser?.role === 'admin';
+    const q = isAdmin
+      ? query(collection(db, TXN_COLLECTION), orderBy('createdAt', 'desc'))
+      : query(
+          collection(db, TXN_COLLECTION),
+          where('collectorId', '==', currentUser?.id || '__none__'),
+          orderBy('createdAt', 'desc')
+        );
     const snapshot = await getDocs(q);
     const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     return { success: true, data };

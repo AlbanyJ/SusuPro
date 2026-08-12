@@ -25,7 +25,7 @@ const PERIODS = [
 
 export default function ReportsScreen() {
   const { state, dispatch } = useApp();
-  const { transactions, customers, dataLoading } = state;
+  const { transactions, customers, currentUser, dataLoading } = state;
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const todayStr = new Date().toISOString().split('T')[0];
@@ -76,7 +76,7 @@ export default function ReportsScreen() {
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[colors.green600]} />
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch, currentUser)} colors={[colors.green600]} />
         }
       >
       <View style={styles.header}>

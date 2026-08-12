@@ -120,7 +120,7 @@ export default function DashboardScreen() {
     setProcessingId(w.id);
     const result = await approveWithdrawal(w.id, currentUser);
     if (result.success) {
-      await loadAppData(dispatch);
+      await loadAppData(dispatch, currentUser);
     } else {
       Alert.alert('Error', result.error || 'Could not approve withdrawal.');
     }
@@ -146,7 +146,7 @@ export default function DashboardScreen() {
       style={styles.screen}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[colors.green600]} />
+        <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch, currentUser)} colors={[colors.green600]} />
       }
     >
 

@@ -16,6 +16,7 @@ import { useApp, ACTIONS, loadAppData } from '../store/AppContext';
 import { addCustomer, updateCustomer } from '../services/customerService';
 import { uploadCustomerPhoto } from '../services/storageService';
 import { fetchUsers } from '../services/userService';
+import { logAction } from '../services/auditService';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
@@ -159,6 +160,12 @@ export default function CustomersScreen() {
         payload: { id: customer.id, active: newStatus },
       });
       setSelected(prev => prev ? { ...prev, active: newStatus } : null);
+      logAction({
+        action:   newStatus ? 'customer_activated' : 'customer_deactivated',
+        userId:   currentUser.id,
+        targetId: customer.id,
+        detail:   customer.name,
+      });
     } else {
       Alert.alert('Error', result.error || 'Could not update customer.');
     }
@@ -209,11 +216,22 @@ export default function CustomersScreen() {
     );
 
     const failed = results.filter(r => !r.success).length;
+    const succeededIds = [];
     selectedIds.forEach((id, i) => {
       if (results[i].success) {
         dispatch({ type: ACTIONS.UPDATE_CUSTOMER, payload: { id, collectorId: bulkCollectorId } });
+        succeededIds.push(id);
       }
     });
+
+    if (succeededIds.length > 0) {
+      logAction({
+        action:   'customers_bulk_assigned',
+        userId:   currentUser.id,
+        targetId: bulkCollectorId,
+        detail:   `Assigned ${succeededIds.length} customer${succeededIds.length === 1 ? '' : 's'} to ${assignedCollectorName(bulkCollectorId) || bulkCollectorId}`,
+      });
+    }
 
     setBulkAssigning(false);
     setShowBulkAssign(false);
@@ -285,7 +303,7 @@ export default function CustomersScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[colors.green600]} />
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch, currentUser)} colors={[colors.green600]} />
         }
         ListEmptyComponent={
           <Text style={styles.empty}>

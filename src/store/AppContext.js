@@ -189,14 +189,14 @@ export function useApp() {
 // Call this once a user is authenticated (see App.js). Screens
 // never need to call the Firestore services directly for reads —
 // they just read state.customers / state.transactions.
-export async function loadAppData(dispatch) {
+export async function loadAppData(dispatch, currentUser) {
   dispatch({ type: ACTIONS.SET_DATA_LOADING, payload: true });
   dispatch({ type: ACTIONS.SET_DATA_ERROR, payload: null });
 
   const [customersResult, transactionsResult, withdrawalsResult] = await Promise.all([
-    fetchCustomers(),
-    fetchTransactions(),
-    fetchPendingWithdrawals(),
+    fetchCustomers(currentUser),
+    fetchTransactions(currentUser),
+    fetchPendingWithdrawals(currentUser),
   ]);
 
   if (customersResult.success) {

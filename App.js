@@ -6,7 +6,7 @@
 //         Also initialises the local SQLite database.
 // ============================================================
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -30,6 +30,13 @@ function AppInner() {
   const { state, dispatch } = useApp();
   const { colors, isDark } = useTheme();
 
+  // The network watcher below is set up once (empty deps) but needs
+  // the CURRENT user whenever it fires, potentially long after login
+  // — a plain closure over state.currentUser would go stale the
+  // moment someone logs in or out. A ref sidesteps that.
+  const currentUserRef = useRef(state.currentUser);
+  useEffect(() => { currentUserRef.current = state.currentUser; }, [state.currentUser]);
+
   const [fontsLoaded] = useFonts({
     'DMSans-Regular':       DMSans_400Regular,
     'DMSans-Medium':        DMSans_500Medium,
@@ -43,7 +50,7 @@ function AppInner() {
     initDatabase().catch(console.error);
 
     // 2. Start watching network — auto-syncs when online
-    const unsubscribeNetwork = startNetworkWatcher(dispatch, ACTIONS);
+    const unsubscribeNetwork = startNetworkWatcher(dispatch, ACTIONS, currentUserRef);
 
     // 3. Rehydrate the session on launch, and react to sign in/out
     //    from anywhere (including the secondary-app trick used to
@@ -54,7 +61,7 @@ function AppInner() {
           const profile = await getUserProfile(firebaseUser.uid);
           if (profile) {
             dispatch({ type: ACTIONS.LOGIN, payload: profile });
-            await loadAppData(dispatch);
+            await loadAppData(dispatch, profile);
           } else {
             dispatch({ type: ACTIONS.LOGOUT });
           }

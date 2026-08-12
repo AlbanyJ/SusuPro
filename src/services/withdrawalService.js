@@ -16,10 +16,12 @@ import {
   getDoc,
   query,
   orderBy,
+  where,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { recordTransaction } from './transactionService';
+import { logAction } from './auditService';
 
 const COLLECTION = 'pendingWithdrawals';
 const CUSTOMER_COLLECTION = 'customers';
@@ -63,11 +65,19 @@ export async function requestWithdrawal({ customerId, amount, requestedBy, reque
 }
 
 // ── FETCH PENDING WITHDRAWALS ─────────────────────────────────
-// Admin-only in practice (see firestore.rules) — the Dashboard's
-// approval queue.
-export async function fetchPendingWithdrawals() {
+// Admins get every request (the Dashboard's approval queue);
+// collectors only get their own — matching firestore.rules, which
+// rejects an unscoped query from a non-admin.
+export async function fetchPendingWithdrawals(currentUser) {
   try {
-    const q = query(collection(db, COLLECTION), orderBy('requestedAt', 'desc'));
+    const isAdmin = currentUser?.role === 'admin';
+    const q = isAdmin
+      ? query(collection(db, COLLECTION), orderBy('requestedAt', 'desc'))
+      : query(
+          collection(db, COLLECTION),
+          where('requestedBy', '==', currentUser?.id || '__none__'),
+          orderBy('requestedAt', 'desc')
+        );
     const snapshot = await getDocs(q);
     const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     return { success: true, data };
@@ -109,6 +119,13 @@ export async function approveWithdrawal(withdrawalId, admin) {
       approvedAt: serverTimestamp(),
     });
 
+    await logAction({
+      action:   'withdrawal_approved',
+      userId:   admin.id,
+      targetId: withdrawalId,
+      detail:   `Approved GHS ${w.amount.toLocaleString()} withdrawal requested by ${w.requestedByName || w.requestedBy}`,
+    });
+
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -124,6 +141,13 @@ export async function rejectWithdrawal(withdrawalId, admin) {
       approvedBy: admin.id,
       approvedAt: serverTimestamp(),
     });
+
+    await logAction({
+      action:   'withdrawal_rejected',
+      userId:   admin.id,
+      targetId: withdrawalId,
+    });
+
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };

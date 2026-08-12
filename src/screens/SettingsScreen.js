@@ -62,7 +62,7 @@ export default function SettingsScreen() {
     }
 
     setSaving(true);
-    const result = await createTeamMember(form);
+    const result = await createTeamMember(form, currentUser.id);
     setSaving(false);
 
     if (result.success) {

@@ -14,15 +14,24 @@ import {
   serverTimestamp,
   query,
   orderBy,
+  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
 const COLLECTION = 'customers'; // Firestore collection name
 
 // ── GET ALL CUSTOMERS ─────────────────────────────────────────
-export async function fetchCustomers() {
+// Admins get every customer; collectors only get the ones assigned
+// to them — matching firestore.rules, which rejects an unscoped
+// query from a non-admin. Pass the logged-in user so this can build
+// the right query (unassigned customers stay invisible to collectors,
+// same as before — that's why bulk-assign exists).
+export async function fetchCustomers(currentUser) {
   try {
-    const q = query(collection(db, COLLECTION), orderBy('name'));
+    const isAdmin = currentUser?.role === 'admin';
+    const q = isAdmin
+      ? query(collection(db, COLLECTION), orderBy('name'))
+      : query(collection(db, COLLECTION), where('collectorId', '==', currentUser?.id || '__none__'), orderBy('name'));
     const snapshot = await getDocs(q);
     const customers = snapshot.docs.map(doc => ({
       id: doc.id,

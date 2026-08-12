@@ -234,7 +234,7 @@ export default function TransactionsScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch)} colors={[colors.green600]} />
+          <RefreshControl refreshing={dataLoading} onRefresh={() => loadAppData(dispatch, currentUser)} colors={[colors.green600]} />
         }
         ListEmptyComponent={
           <Text style={styles.empty}>{dataLoading ? 'Loading transactions…' : 'No transactions found.'}</Text>
