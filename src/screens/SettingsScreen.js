@@ -11,6 +11,7 @@ import { useApp, ACTIONS } from '../store/AppContext';
 import { logoutUser } from '../services/authService';
 import { fetchUsers, createTeamMember } from '../services/userService';
 import { isBiometricAvailable, getBiometricLockEnabled, setBiometricLockEnabled, authenticate } from '../services/biometricService';
+import { reportError } from '../services/errorMonitoring';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
 import Card from '../components/Card';
@@ -277,6 +278,29 @@ export default function SettingsScreen() {
             <Text key={k} style={styles.archLine}><Text style={styles.archKey}>{k}:</Text> {v}</Text>
           ))}
         </Card>
+
+        {/* ── Dev-only: verify Sentry is actually receiving events.
+            __DEV__ is false in any real build, so this never ships. ── */}
+        {__DEV__ && (
+          <Card style={styles.secCard}>
+            <View style={styles.cardHeadRow}>
+              <Ionicons name="bug-outline" size={16} color={colors.gray900} />
+              <Text style={styles.secTitle}>Sentry Test (dev only)</Text>
+            </View>
+            <Text style={[styles.appearanceSub, { marginTop: 4, marginBottom: 10 }]}>
+              Sends a real test error, then check your Sentry project's Issues tab.
+            </Text>
+            <Button
+              label="Send Test Error to Sentry"
+              onPress={() => {
+                reportError(new Error('SusuPro Sentry verification test'), { source: 'SettingsScreen dev button' });
+                Alert.alert('Sent', 'Check your Sentry dashboard\'s Issues tab in a few seconds.');
+              }}
+              variant="secondary"
+              fullWidth
+            />
+          </Card>
+        )}
 
         <Button
           label="Sign Out"
