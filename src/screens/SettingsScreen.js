@@ -155,7 +155,7 @@ export default function SettingsScreen() {
           <View style={styles.appearanceRow}>
             <View style={styles.cardHeadRow}>
               <Ionicons name={mode === 'dark' ? 'moon' : 'sunny'} size={16} color={colors.gray900} />
-              <View>
+              <View style={styles.cardHeadText}>
                 <Text style={[styles.secTitle, { marginBottom: 2 }]}>{mode === 'dark' ? 'Dark Mode' : 'Light Mode'}</Text>
                 <Text style={styles.appearanceSub}>
                   {mode === 'dark' ? 'Deep, bold surfaces' : 'Warm cream background'}
@@ -179,7 +179,7 @@ export default function SettingsScreen() {
           <View style={styles.appearanceRow}>
             <View style={styles.cardHeadRow}>
               <Ionicons name="finger-print-outline" size={16} color={colors.gray900} />
-              <View>
+              <View style={styles.cardHeadText}>
                 <Text style={[styles.secTitle, { marginBottom: 2 }]}>App Lock</Text>
                 <Text style={styles.appearanceSub}>
                   {biometricSupported
@@ -361,8 +361,9 @@ function makeStyles(colors) {
   queueTitle:  { fontFamily: Typography.bold, fontSize: 14, color: colors.amber, marginBottom: 4 },
   queueBody:   { fontFamily: Typography.body, fontSize: 13, color: colors.gray600 },
 
-  cardHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  appearanceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  cardHeadText: { flex: 1 },
+  appearanceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   appearanceSub: { fontFamily: Typography.body, fontSize: 12, color: colors.gray400 },
 
   secCard:     { },

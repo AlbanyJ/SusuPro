@@ -45,6 +45,14 @@ function AppInner() {
   // after a full app restart.
   const [locked, setLocked] = useState(false);
   const appStateRef = useRef(AppState.currentState);
+  // On iOS, presenting the Face ID sheet itself briefly flips AppState
+  // active→inactive→active (it's a system UI overlay) — indistinguishable
+  // from a real background/foreground cycle. Without this guard, the
+  // "came back from background" listener below reads that as the user
+  // reopening the app and re-locks it the instant Face ID succeeds,
+  // which re-shows the prompt — an infinite loop. LockScreen flips this
+  // while a biometric check is in flight so the listener ignores it.
+  const isAuthenticatingRef = useRef(false);
 
   const [fontsLoaded] = useFonts({
     'DMSans-Regular':       DMSans_400Regular,
@@ -92,7 +100,7 @@ function AppInner() {
       const prevState = appStateRef.current;
       appStateRef.current = nextState;
       const cameFromBackground = (prevState === 'background' || prevState === 'inactive') && nextState === 'active';
-      if (cameFromBackground && currentUserRef.current && await getBiometricLockEnabled()) {
+      if (cameFromBackground && !isAuthenticatingRef.current && currentUserRef.current && await getBiometricLockEnabled()) {
         setLocked(true);
       }
     });
@@ -116,6 +124,7 @@ function AppInner() {
   if (locked && state.currentUser) {
     return (
       <LockScreen
+        isAuthenticatingRef={isAuthenticatingRef}
         onUnlock={() => setLocked(false)}
         onSignOut={async () => {
           setLocked(false);
